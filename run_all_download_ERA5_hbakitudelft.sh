@@ -1,25 +1,33 @@
 #!/bin/bash
 # conda activate cdsapi
 main_dir=$(pwd)
-
-target_dir='/data/harish/WRF-PBL-Scheme-Evaluation-with-Chebyshev-Approximation-and-Lidar-Wind-Profiles/Input_DATA'
-year=2023
+cdsapi_file='/home/harish/.cdsapirc_hbakitudelft'
+target_dir='/data/harish/Estimation-of-lidar-wind-speed-profiles-from-ERA5-inputs-using-TabNet/data'
+year=2021
 mkdir -p $target_dir"/"$year
 cd $target_dir"/"$year
-    for month in $(seq 7 1 9)
+    for month in $(seq 1 1 12)
     do
-        if ls "PRES_SC_"$year"_"$month".grb" \
-            && ls "PRES_UVT_"$year"_"$month".grb" \
-            && ls "SFC_"$year"_"$month".grb" 1>/dev/null 2>&1;
+        # --- downloading the PRES_UVT file --- #
+        if ls "PRES_UVT_"$year"_"$month".nc" 1>/dev/null 2>&1;
         then
-            x_files=($(ls "PRES_SC_"$year"_"$month".grb" "PRES_UVT_"$year"_"$month".grb" "SFC_"$year"_"$month".grb"))
-            echo "All files exist:"$(ls -l ${x_files[*]})
+            x_files=($(ls "PRES_UVT_"$year"_"$month".nc"))
+            echo "File exists:"$(ls -l ${x_files[*]})
         else
-            echo "One or more files are missing" 
-            python $main_dir/download_ERA5.py '/home/harish/.cdsapirc_hbakitudelft' $year $month &
+            echo "PRES_UVT File is missing"
+            python $main_dir/download_ERA5_PRES_UVT.py $cdsapi_file $year $month
+        fi
+
+        # --- downloading the SFC file --- #
+        if ls "SFC_"$year"_"$month".nc" 1>/dev/null 2>&1;
+        then
+            x_files=($(ls "SFC_"$year"_"$month".nc"))
+            echo "File exists:"$(ls -l ${x_files[*]})
+        else
+            echo "SFC File is missing"
+            python $main_dir/download_ERA5_SFC.py $cdsapi_file $year $month
         fi
     done
-    wait
 cd $main_dir
 
 echo "All files downloaded"

@@ -1,9 +1,9 @@
 #!/bin/bash
 # conda activate cdsapi
 main_dir=$(pwd)
-cdsapi_file='/home/harish/.cdsapirc_sandhya'
+cdsapi_file='/home/harish/.cdsapirc_harishiiitn'
 target_dir='/data/harish/Estimation-of-lidar-wind-speed-profiles-from-ERA5-inputs-using-TabNet/data'
-year=2022
+year=2023
 mkdir -p $target_dir"/"$year
 cd $target_dir"/"$year
     for month in $(seq 1 1 12)
