@@ -8,6 +8,11 @@ mkdir -p $target_dir"/"$year
 cd $target_dir"/"$year
     for month in $(seq 1 1 12)
     do
+        # change month to 2 digits
+        if [ $month -lt 10 ]
+        then
+            month="0"$month
+        fi
         # --- downloading the PRES_UVT file --- #
         if ls "PRES_UVT_"$year"_"$month".nc" 1>/dev/null 2>&1;
         then
