@@ -1,0 +1,13 @@
+name: TabNet_env
+channels:
+  - conda-forge
+dependencies:
+  - xarray
+  - dask
+  - netcdf4
+  - pandas
+  - numpy
+  - scipy
+  - matplotlib
+  - jupyter
+  - cartopy
