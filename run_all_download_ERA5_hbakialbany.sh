@@ -3,7 +3,7 @@
 main_dir=$(pwd)
 cdsapi_file='/home/harish/.cdsapirc_hbakialbany'
 target_dir='/data/harish/Estimation-of-lidar-wind-speed-profiles-from-ERA5-inputs-using-TabNet/data'
-year=2020
+year=2019
 mkdir -p $target_dir"/"$year
 cd $target_dir"/"$year
     for month in $(seq 1 1 12)
