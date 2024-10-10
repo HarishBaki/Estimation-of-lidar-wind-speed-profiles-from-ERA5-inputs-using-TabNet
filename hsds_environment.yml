@@ -1,0 +1,7 @@
+name: hsds
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip: 
+    - "nrel-rex[hsds]>=0.2.88"
