@@ -11,3 +11,8 @@ dependencies:
   - matplotlib
   - jupyter
   - cartopy
+  - geopandas
+  - pip:
+      - h5pyd
+      - NREL-rex
+  - 
