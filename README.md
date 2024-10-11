@@ -15,3 +15,5 @@
 
     `hs_bucket = nrel-pds-hsds`
 
+- Then activate `hsds` conda environment and run `hsds` to start the local server. 
+
