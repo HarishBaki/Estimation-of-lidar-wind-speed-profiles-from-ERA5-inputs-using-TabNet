@@ -86,13 +86,13 @@ def Chebyshev_Coeff(H, U,poly_order=poly_order,CPtype=CPtype,ref_H=ref_H):
     N = len(Ua)
 
     # Linearly extrapolate wind values at the boundaries
-    spline_left = interp1d(Ha, Ua, kind='linear', fill_value='extrapolate')
-    Uax = spline_left([-1])
+    #spline_left = interp1d(Ha, Ua, kind='linear', fill_value='extrapolate')
+    #Uax = spline_left([-1])
 
-    spline_right = interp1d(Ha, Ua, kind='linear', fill_value='extrapolate')
-    Uay = spline_right([1])
-    Ua = np.concatenate([Uax, Ua, Uay])
-    Ha = np.concatenate([-1 + np.zeros(1), Ha, 1 + np.zeros(1)])
+    #spline_right = interp1d(Ha, Ua, kind='linear', fill_value='extrapolate')
+    #Uay = spline_right([1])
+    #Ua = np.concatenate([Uax, Ua, Uay])
+    #Ha = np.concatenate([-1 + np.zeros(1), Ha, 1 + np.zeros(1)])       # these two seems are unnecessary, which bring adidtional offset due to extrapolation.
     
     # Predict the gap-filled and denoised profile
     PL = Chebyshev_Basu(Ha, poly_order=poly_order, CPtype=CPtype)
