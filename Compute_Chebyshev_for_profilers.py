@@ -10,7 +10,6 @@ import os, sys, glob, re, time, math, calendar
 sys.path.append('/')
 from libraries import *
 
-ref_H = np.array([0,10] + list(range(100, 501, 25)))
 poly_order = 4
 CPtype = 1
 

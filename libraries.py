@@ -21,9 +21,11 @@ from sklearn.metrics import mean_absolute_percentage_error as mape
 from sklearn.metrics import r2_score as R2
 from scipy.interpolate import interp1d
 
-# The following height levels are fixed at all time
-ref_H = np.array([0] + [10] + list(range(20, 301, 20)) + [400, 500])
-ref_H = np.array([0, 10] + list(range(100, 501, 25)))
+# we would like to make sure that the reference height levels cover the profiler levels and NOW23 levels, including the 0 m level.
+profilers_levels = np.array([10] + list(range(100, 501, 25)))
+NOW23_levels = np.array([10] + list(range(20, 301, 20)) + [400, 500])
+# combine the two arrays and remove duplicates
+ref_H = np.unique(np.concatenate((np.array([0]),profilers_levels, NOW23_levels)))
 
 # These variables are used while creating the Chebyshev coefficients
 poly_order = 4
