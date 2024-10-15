@@ -145,6 +145,7 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
 
     if val_arg:
         #=== Extracting training and validation indices ===# 
+        # we chose the Chebyshev coefficients time as the reference time, since there will be gaps in it.
         time_coord = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).coords['time']
         years = time_coord.dt.year
         months = time_coord.dt.month
@@ -162,9 +163,12 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
                 Thus, lets consider 20% of the month data for validation.
                 '''
                 validation_window = int(0.2*len(month_indices))
-                start_index = np.random.choice(len(month_indices) - validation_window - 1)
-                validation_indices = month_indices[start_index:start_index + validation_window]
-                validation_times[validation_indices] = True
+                try:
+                    start_index = np.random.choice(len(month_indices) - validation_window - 1)
+                    validation_indices = month_indices[start_index:start_index + validation_window]
+                    validation_times[validation_indices] = True
+                except:
+                    pass
     
         # --- training ---#
         X_train = inputs[input_variables].sel(valid_time=time_coord.values).sel(valid_time=~validation_times, location=station_id).to_array().values.T
@@ -175,27 +179,27 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
         Y_valid = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).sel(coeff=target_variables,time=validation_times).to_array().values       
     
         # Replace NaN values with zeros
-        X_train = np.nan_to_num(X_train)
-        Y_train = np.nan_to_num(Y_train[0,:,:])
-        X_valid = np.nan_to_num(X_valid)
-        Y_valid = np.nan_to_num(Y_valid[0,:,:])
+        #X_train = np.nan_to_num(X_train)
+        #Y_train = np.nan_to_num(Y_train)
+        #X_valid = np.nan_to_num(X_valid)
+        #Y_valid = np.nan_to_num(Y_valid)
         
-        return X_train, Y_train, X_valid, Y_valid
+        return X_train, Y_train[0,...], X_valid, Y_valid[0,...]
 
     else:
-        X = np.empty((0, len(input_variables)))
-        Y = np.empty((0, len(target_variables)))
+        #X = np.empty((0, len(input_variables)))
+        #Y = np.empty((0, len(target_variables)))
 
         # --- testing ---#
         time_coord = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).coords['time']
-        X = inputs[input_variables].sel(valid_time=time_coord.values).to_array().values.T
+        X = inputs[input_variables].sel(valid_time=time_coord.values, location=station_id).to_array().values.T
         Y = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).sel(coeff=target_variables).to_array().values
 
         # Replace NaN values with zeros
-        X = np.nan_to_num(X)
-        Y = np.nan_to_num(Y[0,:,:])
+        #X = np.nan_to_num(X)
+        #Y = np.nan_to_num(Y[0,:,:])
 
-        return X, Y
+        return X, Y[0,...]
 
 nELI5max = 1 #FIXME
 def myELI5(model,X,y,multiout=None,target_variable=None):

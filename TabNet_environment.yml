@@ -1,4 +1,4 @@
-name: TabNet_env
+name: TabNet_env_new
 channels:
   - conda-forge
 dependencies:
@@ -12,6 +12,3 @@ dependencies:
   - jupyter
   - cartopy
   - geopandas
-  - pip:
-      - h5pyd
-      - NREL-rex
