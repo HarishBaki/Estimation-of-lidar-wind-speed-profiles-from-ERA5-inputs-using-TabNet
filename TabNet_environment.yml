@@ -15,5 +15,7 @@ dependencies:
   - matplotlib
   - jupyter
   - cartopy
+  - seaborn
   - geopandas
   - pytorch-tabnet
+  - lightning

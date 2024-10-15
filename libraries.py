@@ -178,11 +178,11 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
         X_valid = inputs[input_variables].sel(valid_time=time_coord.values).sel(valid_time=validation_times, location=station_id).to_array().values.T
         Y_valid = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).sel(coeff=target_variables,time=validation_times).to_array().values       
     
-        # Replace NaN values with zeros
-        #X_train = np.nan_to_num(X_train)
-        #Y_train = np.nan_to_num(Y_train)
-        #X_valid = np.nan_to_num(X_valid)
-        #Y_valid = np.nan_to_num(Y_valid)
+        # Replace NaN values with zeros. This is necessary since the ERA5 data may have nan values.
+        X_train = np.nan_to_num(X_train)
+        Y_train = np.nan_to_num(Y_train)
+        X_valid = np.nan_to_num(X_valid)
+        Y_valid = np.nan_to_num(Y_valid)
         
         return X_train, Y_train[0,...], X_valid, Y_valid[0,...]
 
@@ -196,8 +196,8 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
         Y = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).sel(coeff=target_variables).to_array().values
 
         # Replace NaN values with zeros
-        #X = np.nan_to_num(X)
-        #Y = np.nan_to_num(Y[0,:,:])
+        X = np.nan_to_num(X)
+        Y = np.nan_to_num(Y)
 
         return X, Y[0,...]
 
