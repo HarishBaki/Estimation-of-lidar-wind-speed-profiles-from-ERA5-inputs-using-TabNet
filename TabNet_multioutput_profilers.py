@@ -69,7 +69,7 @@ experiment = f'ERA5_to_profilers'
 tabnet_param_file = 'tabnet_params_8th_set.csv'
 Ens = int(sys.argv[2])
 
-model_output_dir = f'trained_models/{experiment}/{station_id}/weighted_mse_loss/Ens{Ens}'
+model_output_dir = f'trained_models/{experiment}/{station_id}/focal_mse_loss/Ens{Ens}'
 os.system(f'mkdir -p {model_output_dir}')
 
 
@@ -123,7 +123,7 @@ def weighted_mse_loss(y_pred, y_true):
     Emphasizes errors on the last three coefficients.
     """
     # Define the weights, with more weight on the last three coefficients
-    weights = torch.tensor([1.0, 1.0, 2.0, 2.0, 2.0], device=y_pred.device)
+    weights = torch.tensor([1.0, 1.0, 5.0, 10.0, 10.0], device=y_pred.device)
 
     # Compute the squared differences
     squared_diff = (y_pred - y_true) ** 2
@@ -134,12 +134,41 @@ def weighted_mse_loss(y_pred, y_true):
     # Compute the mean of the weighted squared differences
     return torch.mean(weighted_squared_diff)
 
+def focal_mse_loss(y_pred, y_true):
+    """
+    Custom focal MSE loss for weighted regression.
+    
+    Parameters:
+    - y_pred: Predicted values (shape: [batch_size, 5])
+    - y_true: Ground truth values (shape: [batch_size, 5])
+    - weights: Tensor of weights to emphasize specific coefficients (shape: [5])
+    - gamma: Focusing parameter to increase weight on larger errors
+    
+    Returns:
+    - Loss value (scalar)
+    """
+    # Define the weights, with more weight on the last three coefficients
+    weights = torch.tensor([1.0, 1.0, 5.0, 10.0, 10.0], device=y_pred.device)
+
+    # Compute the squared differences (MSE for each coefficient)
+    squared_diff = (y_pred - y_true) ** 2
+    
+    # Apply the weights to emphasize specific coefficients
+    weighted_diff = squared_diff * weights
+    
+    # Apply the focal modulating factor
+    focal_weight = (1 - torch.exp(-weighted_diff)) ** gamma
+    focal_loss = focal_weight * weighted_diff
+    
+    # Return the mean loss across the batch and coefficients
+    return focal_loss.mean()
+
 tabReg.fit(X_train=X_train, y_train=Y_train,
                     eval_set=[(X_train, Y_train), (X_valid, Y_valid)],
                     eval_name=['train', 'valid'],
                     max_epochs=250, batch_size=512,    #bSize_opt.item(), 
                     eval_metric=['rmse'], patience=10,  #mae, rmse
-                    loss_fn = weighted_mse_loss)
+                    loss_fn = focal_mse_loss)
 
 
 # In[12]:
