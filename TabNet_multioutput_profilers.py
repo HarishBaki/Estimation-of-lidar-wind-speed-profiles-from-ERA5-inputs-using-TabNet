@@ -69,7 +69,7 @@ experiment = f'ERA5_to_profilers'
 tabnet_param_file = 'tabnet_params_8th_set.csv'
 Ens = int(sys.argv[2])
 
-model_output_dir = f'trained_models/{experiment}/{station_id}/L1Loss/Ens{Ens}'
+model_output_dir = f'trained_models/{experiment}/{station_id}/weighted_mse_loss/Ens{Ens}'
 os.system(f'mkdir -p {model_output_dir}')
 
 
@@ -117,13 +117,29 @@ tabReg   = TabNetRegressor(n_d = n_d,
 
 # In[11]:
 
+def weighted_mse_loss(y_pred, y_true):
+    """
+    Custom weighted MSE loss function for a 5-coefficient target vector.
+    Emphasizes errors on the last three coefficients.
+    """
+    # Define the weights, with more weight on the last three coefficients
+    weights = torch.tensor([1.0, 1.0, 2.0, 2.0, 2.0], device=y_pred.device)
+
+    # Compute the squared differences
+    squared_diff = (y_pred - y_true) ** 2
+
+    # Apply the weights to the squared differences
+    weighted_squared_diff = squared_diff * weights
+
+    # Compute the mean of the weighted squared differences
+    return torch.mean(weighted_squared_diff)
 
 tabReg.fit(X_train=X_train, y_train=Y_train,
                     eval_set=[(X_train, Y_train), (X_valid, Y_valid)],
                     eval_name=['train', 'valid'],
                     max_epochs=250, batch_size=512,    #bSize_opt.item(), 
                     eval_metric=['rmse'], patience=10,  #mae, rmse
-                    loss_fn = torch.nn.L1Loss())
+                    loss_fn = weighted_mse_loss)
 
 
 # In[12]:
