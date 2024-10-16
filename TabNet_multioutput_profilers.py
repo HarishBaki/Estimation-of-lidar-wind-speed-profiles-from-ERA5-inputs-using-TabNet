@@ -123,7 +123,7 @@ tabReg.fit(X_train=X_train, y_train=Y_train,
                     eval_name=['train', 'valid'],
                     max_epochs=250, batch_size=512,    #bSize_opt.item(), 
                     eval_metric=['rmse'], patience=10,  #mae, rmse
-                    loss_fn = torch.nn.MSELoss())
+                    loss_fn = torch.nn.MAELoss())
 
 
 # In[12]:
