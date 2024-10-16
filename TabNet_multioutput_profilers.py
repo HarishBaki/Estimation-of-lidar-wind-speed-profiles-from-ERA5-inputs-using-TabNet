@@ -69,7 +69,7 @@ experiment = f'ERA5_to_profilers'
 tabnet_param_file = 'tabnet_params_8th_set.csv'
 Ens = int(sys.argv[2])
 
-model_output_dir = f'trained_models/{experiment}/{station_id}/Ens{Ens}'
+model_output_dir = f'trained_models/{experiment}/{station_id}/L1Loss/Ens{Ens}'
 os.system(f'mkdir -p {model_output_dir}')
 
 
@@ -123,7 +123,7 @@ tabReg.fit(X_train=X_train, y_train=Y_train,
                     eval_name=['train', 'valid'],
                     max_epochs=250, batch_size=512,    #bSize_opt.item(), 
                     eval_metric=['rmse'], patience=10,  #mae, rmse
-                    loss_fn = torch.nn.MAELoss())
+                    loss_fn = torch.nn.L1Loss())
 
 
 # In[12]:
