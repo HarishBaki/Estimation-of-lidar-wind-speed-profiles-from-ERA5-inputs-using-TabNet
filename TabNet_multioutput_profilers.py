@@ -123,7 +123,7 @@ def weighted_mse_loss(y_pred, y_true):
     Emphasizes errors on the last three coefficients.
     """
     # Define the weights, with more weight on the last three coefficients
-    weights = torch.tensor([1.0, 1.0, 5.0, 10.0, 10.0], device=y_pred.device)
+    weights = torch.tensor([0.5, 1.0, 5.0, 10.0, 10.0], device=y_pred.device)
 
     # Compute the squared differences
     squared_diff = (y_pred - y_true) ** 2
@@ -148,7 +148,7 @@ def focal_mse_loss(y_pred, y_true):
     - Loss value (scalar)
     """
     # Define the weights, with more weight on the last three coefficients
-    weights = torch.tensor([1.0, 1.0, 5.0, 10.0, 10.0], device=y_pred.device)
+    weights = torch.tensor([1.0, 1.0, 1.0, 1.0, 1.0], device=y_pred.device)
 
     # Compute the squared differences (MSE for each coefficient)
     squared_diff = (y_pred - y_true) ** 2
