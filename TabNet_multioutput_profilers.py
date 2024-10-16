@@ -43,6 +43,8 @@ from plotters import *
 from numpy.random import seed
 randSeed = np.random.randint(1000)
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 
 # In[5]:
 
@@ -55,8 +57,9 @@ input_variables = [
     "sktempgrad", "dewtempsprd", "975tempgrad", "950tempgrad", "sinHR", 
     "cosHR", "sinJDAY", "cosJDAY"
 ]
-input_times_freq = 1 #ratio between the target times and input times
+input_times_freq = 1 #ratio between the target times and input times, 12 for NOW23 data
 
+sys.argv = ['', 'PROF_QUEE', 8, 'not_transformed','profiler_loss']    # for debugging
 station_id = sys.argv[1]
 Coeff_file = f'data/Profiler_Chebyshev_Coefficients/{station_id}.nc'
 target_variables = [0,1,2,3,4]
@@ -69,7 +72,10 @@ experiment = f'ERA5_to_profilers'
 tabnet_param_file = 'tabnet_params_8th_set.csv'
 Ens = int(sys.argv[2])
 
-model_output_dir = f'trained_models/{experiment}/{station_id}/focal_mse_loss/Ens{Ens}'
+transformed = sys.argv[3]
+loss_function = sys.argv[4]
+
+model_output_dir = f'trained_models/{experiment}/{station_id}/{transformed}/{loss_function}/Ens{Ens}'
 os.system(f'mkdir -p {model_output_dir}')
 
 
@@ -87,6 +93,18 @@ print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape)
 X_test, Y_test = data_processing(input_file,Coeff_file,
                                 input_times_freq,input_variables,target_variables,test_dates_range,station_id)
 print(X_test.shape, Y_test.shape)
+
+
+# === normalizing the training and validaiton data ---#
+if transformed == 'transformed':
+    min_max_scaler = preprocessing.MinMaxScaler().fit(Y_train)
+
+    Y_train = min_max_scaler.transform(Y_train)
+    Y_valid = min_max_scaler.transform(Y_valid)
+
+    # --- save the normalizing function ---#
+    joblib.dump(min_max_scaler, f'{model_output_dir}/min_max_scaler.joblib')
+    print('min_max_scaler dumped')
 
 
 # In[9]:
@@ -117,62 +135,29 @@ tabReg   = TabNetRegressor(n_d = n_d,
 
 # In[11]:
 
-def weighted_mse_loss(y_pred, y_true):
-    """
-    Custom weighted MSE loss function for a 5-coefficient target vector.
-    Emphasizes errors on the last three coefficients.
-    """
-    # Define the weights, with more weight on the last three coefficients
-    weights = torch.tensor([0.5, 1.0, 5.0, 10.0, 10.0], device=y_pred.device)
-
-    # Compute the squared differences
-    squared_diff = (y_pred - y_true) ** 2
-
-    # Apply the weights to the squared differences
-    weighted_squared_diff = squared_diff * weights
-
-    # Compute the mean of the weighted squared differences
-    return torch.mean(weighted_squared_diff)
-
-def focal_mse_loss(y_pred, y_true):
-    """
-    Custom focal MSE loss for weighted regression.
-    
-    Parameters:
-    - y_pred: Predicted values (shape: [batch_size, 5])
-    - y_true: Ground truth values (shape: [batch_size, 5])
-    - weights: Tensor of weights to emphasize specific coefficients (shape: [5])
-    - gamma: Focusing parameter to increase weight on larger errors
-    
-    Returns:
-    - Loss value (scalar)
-    """
-    # Define the weights, with more weight on the last three coefficients
-    weights = torch.tensor([1.0, 1.0, 1.0, 1.0, 1.0], device=y_pred.device)
-
-    # Compute the squared differences (MSE for each coefficient)
-    squared_diff = (y_pred - y_true) ** 2
-    
-    # Apply the weights to emphasize specific coefficients
-    weighted_diff = squared_diff * weights
-    
-    # Apply the focal modulating factor
-    focal_weight = (1 - torch.exp(-weighted_diff)) ** gamma
-    focal_loss = focal_weight * weighted_diff
-    
-    # Return the mean loss across the batch and coefficients
-    return focal_loss.mean()
+if loss_function == 'L1_loss':
+    loss_fn = L1_loss
+elif loss_function == 'MSE_loss':
+    loss_fn = MSE_loss
+elif loss_function == 'weighted_MSE_loss':
+    loss_fn = weighted_MSE_loss
+elif loss_function == 'focal_MSE_loss':
+    loss_fn = focal_MSE_loss
+elif loss_function == 'profiler_loss':
+    loss_fn = profiler_loss
+else:
+    print('Unknown loss function')
+    sys.exit(1)
 
 tabReg.fit(X_train=X_train, y_train=Y_train,
                     eval_set=[(X_train, Y_train), (X_valid, Y_valid)],
                     eval_name=['train', 'valid'],
                     max_epochs=250, batch_size=512,    #bSize_opt.item(), 
                     eval_metric=['rmse'], patience=10,  #mae, rmse
-                    loss_fn = focal_mse_loss)
+                    loss_fn = loss_fn) #weighted_mse_loss, #focal_mse_loss
 
 
 # In[12]:
-
 
 fSTR = f'{model_output_dir}/TabNet_HOLDOUT.pkl'
 with open(fSTR, "wb") as f:
@@ -196,11 +181,12 @@ ax.set_xlabel('Epochs')
 ax.set_ylabel('RMSE')
 ax.legend()
 
-Y_pred = tabReg.predict(X_valid)
-#Y_pred = min_max_scaler.inverse_transform(Y_pred)
+Y_pred = tabReg.predict(X_test)
+if transformed == 'transformed':
+    Y_pred = min_max_scaler.inverse_transform(Y_pred)
 
 for j,target_variable in enumerate(target_variables):
-    hexbin_plotter(fig,gs[j+1],Y_valid[:,target_variable],Y_pred[:,target_variable],f'Coefficient {target_variable}',text_arg=True, xlabel='True', ylabel='Predicted')
+    hexbin_plotter(fig,gs[j+1],Y_test[:,target_variable],Y_pred[:,target_variable],f'Coefficient {target_variable}',text_arg=True, xlabel='True', ylabel='Predicted')
 fig.suptitle(f"n_d:{n_d}, n_a:{n_a}, n_steps:{n_steps}, n_independent:{n_independent}, n_shared:{n_shared}, gamma:{gamma}")
 
 plt.savefig(f'{model_output_dir}/TabNet_HOLDOUT.png')

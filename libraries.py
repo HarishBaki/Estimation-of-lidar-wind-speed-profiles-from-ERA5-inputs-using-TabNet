@@ -8,6 +8,7 @@ import sys
 import ast
 import yaml
 import time
+import torch
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import mean_squared_error
@@ -201,63 +202,76 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
 
         return X, Y[0,...]
 
-nELI5max = 1 #FIXME
-def myELI5(model,X,y,multiout=None,target_variable=None):
-    '''
-    Calculates the feature importance using the ELI5 methodology
-    model: saved ML model
-    X: Input matrix
-    y: target vector, since the feature importane is designed for one target variable at a time
-    multiout: whether the model is trained with multioutput mode
-    target_variable: if the model is trained with multioutput mode, we need to specify the target variable from the prediction
-    '''
-    nSamples, nFeatures = np.shape(X)
-    iTot = np.arange(0,nSamples,1)
+def L1_loss(y_pred, y_true):
+    """
+    Custom L1 loss function for a 5-coefficient target vector.
+    """
+    return torch.mean(torch.abs(y_pred - y_true))
+
+def MSE_loss(y_pred, y_true):
+    """
+    Custom MSE loss function for a 5-coefficient target vector.
+    """
+    return torch.mean((y_pred - y_true) ** 2)
+
+def weighted_MSE_loss(y_pred, y_true):
+    """
+    Custom weighted MSE loss function for a 5-coefficient target vector.
+    Emphasizes errors on the last three coefficients.
+    """
+    # Define the weights, with more weight on the last three coefficients
+    weights = torch.tensor([0.5, 1.0, 5.0, 10.0, 10.0], device=y_pred.device)
+
+    # Compute the squared differences
+    squared_diff = (y_pred - y_true) ** 2
+
+    # Apply the weights to the squared differences
+    weighted_squared_diff = squared_diff * weights
+
+    # Compute the mean of the weighted squared differences
+    return torch.mean(weighted_squared_diff)
+
+def focal_MSE_loss(y_pred, y_true):
+    """
+    Custom focal MSE loss for weighted regression.
     
-    #Original prediction
-    if multiout:
-        y_pred_org = model.predict(X)[:,target_variable]
-    else:
-        y_pred_org = model.predict(X)
-    E_org      = np.sqrt(mse(y,y_pred_org)) 
+    Parameters:
+    - y_pred: Predicted values (shape: [batch_size, 5])
+    - y_true: Ground truth values (shape: [batch_size, 5])
+    - weights: Tensor of weights to emphasize specific coefficients (shape: [5])
+    - gamma: Focusing parameter to increase weight on larger errors
     
-    featImp = np.zeros(nFeatures)
-    for nF in range(nFeatures):
+    Returns:
+    - Loss value (scalar)
+    """
+    # Define the weights, with more weight on the last three coefficients
+    weights = torch.tensor([1.0, 1.0, 1.0, 1.0, 1.0], device=y_pred.device)
 
-        E_shfl_tot = 0
-        for nELI5 in range(nELI5max):
-            
-            X_shfl = np.copy(X)
+    # Compute the squared differences (MSE for each coefficient)
+    squared_diff = (y_pred - y_true) ** 2
+    
+    # Apply the weights to emphasize specific coefficients
+    weighted_diff = squared_diff * weights
+    
+    # Apply the focal modulating factor
+    focal_weight = (1 - torch.exp(-weighted_diff)) ** 0.5
+    focal_loss = focal_weight * weighted_diff
+    
+    # Return the mean loss across the batch and coefficients
+    return focal_loss.mean()
 
-            np.random.shuffle(iTot)
-
-            dum          = X_shfl[:,nF]
-            X_shfl[:,nF] = dum[iTot]
-            X_shfl       = pd.DataFrame(data=X_shfl)
-            if multiout:
-                y_pred_shfl  = model.predict(X_shfl.values)[:,target_variable]
-            else:
-                y_pred_shfl  = model.predict(X_shfl.values)
-            E_shfl       = np.sqrt(mse(y,y_pred_shfl))
-
-            E_shfl_tot   = E_shfl_tot + E_shfl
-
-        #print(nF,E_org,E_shfl_tot/nELI5/E_org)
-        featImp[nF] = (E_shfl_tot/nELI5max - E_org)*100/E_org
-        
-    return featImp
-
-
-def featImp_variables(target_variable,number_of_features):
+def profiler_loss(Y_pred,Y_true):
     '''
-    In training, where certain important features are only used, which are computed before using XGBoost and saved.
-    target_variable: target coefficient
-    number_of_features: number of important features corresponding the target variable
+    This function computes the full level wind profile provided vertical levels and the Chebyshev coefficients
+    Z: height levels, in their useual units
+    Coeff: Chebysev coefficients
     '''
-    # === Load important features ===#
-    sorted_feature_importance_array = np.load(f'Coefficient_{target_variable}_featImp.npy')    
-    # Access the data from the numpy array
-    feature_names = sorted_feature_importance_array['Feature']
-    importances = sorted_feature_importance_array['Importance']
-    return feature_names[:number_of_features[target_variable]]
+    # Normalize H
+    Z = np.linspace(10,500+1,20)
+    Hn = normalize(Z, ref_H=ref_H)
+    PL_full = Chebyshev_Basu(Hn, poly_order=poly_order, CPtype=CPtype)
+    PL_full = torch.tensor(PL_full, dtype=torch.float32,device=Y_pred.device)
+    Profile_pred = (PL_full @ Y_pred.T).T
+    Profile_true = (PL_full @ Y_true.T).T
 
+    return torch.sqrt(torch.mean((Profile_pred - Profile_true)**2))
