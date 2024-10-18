@@ -35,7 +35,7 @@ for index, row in profiler_stations.iterrows():
             dfs.append(df)
         combined_df = pd.concat(dfs,axis=0)
 
-        Z = Z = np.array([10] + list(range(20, 301, 20)) + [400, 500])
+        Z = np.array([10] + list(range(20, 301, 20)) + [400, 500])
 
         # Number of observations, time steps, and height levels
         n_time, n_height = combined_df.shape
