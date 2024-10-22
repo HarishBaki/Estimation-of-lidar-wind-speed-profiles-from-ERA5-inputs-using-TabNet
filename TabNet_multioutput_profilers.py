@@ -43,8 +43,6 @@ from plotters import *
 from numpy.random import seed
 randSeed = np.random.randint(1000)
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-
 
 # In[5]:
 
@@ -59,31 +57,52 @@ input_variables = [
 ]
 input_times_freq = 1 #ratio between the target times and input times, 12 for NOW23 data
 
-sys.argv = ['', 'PROF_QUEE', 8, 'not_transformed','profiler_loss']    # for debugging
+sys.argv = ['', 'PROF_BRON','Averaged_over_55th_to_5th_min', 'segregated', 'not_transformed','Kho_loss_on_profile',8, "1"]    # for debugging
 station_id = sys.argv[1]
-Coeff_file = f'data/Profiler_Chebyshev_Coefficients/{station_id}.nc'
+hourly_data_method = sys.argv[2]
+Coeff_file = f'data/Profiler_Chebyshev_Coefficients_with_outliers/{hourly_data_method}/{station_id}.nc'
 target_variables = [0,1,2,3,4]
 
-train_dates_range = ('2018-01-01T00:00:00', '2019-12-31T23:00:00')
-test_dates_range = ('2020-01-01T00:00:00', '2020-12-31T23:00:00')
+train_dates_range = ('2021-01-01T00:00:00', '2023-12-31T23:00:00')
+test_dates_range = ('2018-01-01T00:00:00', '2020-12-31T23:00:00')
+
+# Extract years from the date range
+start_date = datetime.fromisoformat(train_dates_range[0])
+end_date = datetime.fromisoformat(train_dates_range[1])
+# Get the years
+start_year = start_date.year
+end_year = end_date.year
+# Format the folder name
+if start_year == end_year:
+    years_experiment = f"{start_year}"
+else:
+    years_experiment = f"{start_year}_to_{end_year}"
 
 experiment = f'ERA5_to_profilers'
 
 tabnet_param_file = 'tabnet_params_8th_set.csv'
-Ens = int(sys.argv[2])
 
-transformed = sys.argv[3]
-loss_function = sys.argv[4]
+segregated = sys.argv[3]
+transformed = sys.argv[4]
+loss_function = sys.argv[5]
+Ens = int(sys.argv[6])
+gpu_device = sys.argv[7]
 
-model_output_dir = f'trained_models/{experiment}/{station_id}/{transformed}/{loss_function}/Ens{Ens}'
+os.environ["CUDA_VISIBLE_DEVICES"] = gpu_device
+
+
+model_output_dir = f'trained_models/{experiment}/{station_id}/{hourly_data_method}/{years_experiment}/{segregated}/{transformed}/{loss_function}/Ens{Ens}'
 os.system(f'mkdir -p {model_output_dir}')
 
 
 # In[7]:
 
-
+if segregated == 'segregated':
+    segregate_arg = True
+else:
+    segregate_arg = None
 X_train, Y_train, X_valid, Y_valid = data_processing(input_file,Coeff_file,
-                                                    input_times_freq,input_variables,target_variables,train_dates_range,station_id,val_arg=True)
+                                                    input_times_freq,input_variables,target_variables,train_dates_range,station_id,val_arg=True, segregate_arg=segregate_arg)
 print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape)
 
 
@@ -91,7 +110,7 @@ print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape)
 
 
 X_test, Y_test = data_processing(input_file,Coeff_file,
-                                input_times_freq,input_variables,target_variables,test_dates_range,station_id)
+                                input_times_freq,input_variables,target_variables,test_dates_range,station_id,val_arg=None, segregate_arg=segregate_arg)
 print(X_test.shape, Y_test.shape)
 
 
@@ -145,6 +164,10 @@ elif loss_function == 'focal_MSE_loss':
     loss_fn = focal_MSE_loss
 elif loss_function == 'profiler_loss':
     loss_fn = profiler_loss
+elif loss_function == 'Kho_loss':
+    loss_fn = Kho_loss
+elif loss_function == 'Kho_loss_on_profile':
+    loss_fn = Kho_loss_on_profile
 else:
     print('Unknown loss function')
     sys.exit(1)

@@ -129,7 +129,7 @@ def Basu_Coeff(z,u):
     popt, pcov = curve_fit(Basu_WindProfile, z, u, p0=[1, 1, 1])  # p0 are initial guesses for parameters a, b, and c
     return popt
 
-def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,target_variables, dates_range, station_id,val_arg=None):
+def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,target_variables, dates_range, station_id,val_arg=None,segregate_arg=None):
     '''
     This function reads the nc files and converts them into numpy arrays in the required shape.
     input_file: input variables file (either ERA5 or CERRA)
@@ -144,10 +144,14 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
     inputs = xr.open_dataset(input_file)
     ChSh_Coeff = xr.open_dataset(ChSh_Coeff_file)
 
+    # we chose the Chebyshev coefficients time as the reference time, since there will be gaps in it.
+    if segregate_arg:
+        time_coord = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).where(ChSh_Coeff.outlier==1,drop=True).coords['time']
+        print('Segregated times:',time_coord.size)
+    else:
+        time_coord = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).coords['time']
     if val_arg:
         #=== Extracting training and validation indices ===# 
-        # we chose the Chebyshev coefficients time as the reference time, since there will be gaps in it.
-        time_coord = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).coords['time']
         years = time_coord.dt.year
         months = time_coord.dt.month
         validation_times = np.zeros(len(time_coord), dtype=bool)
@@ -173,11 +177,11 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
     
         # --- training ---#
         X_train = inputs[input_variables].sel(valid_time=time_coord.values).sel(valid_time=~validation_times, location=station_id).to_array().values.T
-        Y_train = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).sel(coeff=target_variables,time=~validation_times).to_array().values
+        Y_train = ChSh_Coeff.sel(time=time_coord.values).sel(coeff=target_variables,time=~validation_times).to_array().values
 
         # --- vlaidation ---#
         X_valid = inputs[input_variables].sel(valid_time=time_coord.values).sel(valid_time=validation_times, location=station_id).to_array().values.T
-        Y_valid = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).sel(coeff=target_variables,time=validation_times).to_array().values       
+        Y_valid = ChSh_Coeff.sel(time=time_coord.values).sel(coeff=target_variables,time=validation_times).to_array().values       
     
         # Replace NaN values with zeros. This is necessary since the ERA5 data may have nan values.
         X_train = np.nan_to_num(X_train)
@@ -192,9 +196,8 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
         #Y = np.empty((0, len(target_variables)))
 
         # --- testing ---#
-        time_coord = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).coords['time']
         X = inputs[input_variables].sel(valid_time=time_coord.values, location=station_id).to_array().values.T
-        Y = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).sel(coeff=target_variables).to_array().values
+        Y = ChSh_Coeff.sel(time=time_coord.values).sel(coeff=target_variables).to_array().values
 
         # Replace NaN values with zeros
         X = np.nan_to_num(X)
@@ -275,3 +278,32 @@ def profiler_loss(Y_pred,Y_true):
     Profile_true = (PL_full @ Y_true.T).T
 
     return torch.sqrt(torch.mean((Profile_pred - Profile_true)**2))
+
+def Kho_loss(y_pred, y_true):
+    """
+    Custom Kho loss function for a 5-coefficient target vector.
+    Designed based on https://doi.org/10.1007/s00703-020-00736-3.
+    """
+    numerator = torch.sqrt(torch.mean((y_pred - y_true) ** 2))
+    denominator = torch.sqrt(torch.var(y_pred)+torch.var(y_true))
+
+    return numerator/denominator 
+
+def Kho_loss_on_profile(Y_pred,Y_true):
+    '''
+    This function computes the full level wind profile provided vertical levels and the Chebyshev coefficients
+    Z: height levels, in their useual units
+    Coeff: Chebysev coefficients
+    '''
+    # Normalize H
+    Z = np.linspace(10,500+1,20)
+    Hn = normalize(Z, ref_H=ref_H)
+    PL_full = Chebyshev_Basu(Hn, poly_order=poly_order, CPtype=CPtype)
+    PL_full = torch.tensor(PL_full, dtype=torch.float32,device=Y_pred.device)
+    Profile_pred = (PL_full @ Y_pred.T).T
+    Profile_true = (PL_full @ Y_true.T).T
+
+    numerator = torch.sqrt(torch.mean((Profile_pred - Profile_true) ** 2))
+    denominator = torch.sqrt(torch.var(Profile_true)+torch.var(Profile_true))
+
+    return numerator/denominator 
