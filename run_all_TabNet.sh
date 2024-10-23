@@ -1,17 +1,17 @@
 # === multi-output training obs targets === #
 
 # Create a bash for loop for different stations
-MAX_CONCURRENT_PROCESSES=6  # Limit to 10 concurrent processes
+MAX_CONCURRENT_PROCESSES=30  # Limit to 10 concurrent processes
 gpu_devices=(0 1 2)          # Array of available GPU devices
 gpu_count=${#gpu_devices[@]} # Count the number of GPUs available
 
 process_count=0  # Counter to track running processes
 
-for station in "PROF_QUEE" "PROF_BRON" "PROF_STAT"; do
-    for hourly_data_method in "Averaged_over_55th_to_5th_min" "Time_shifted_from_5th_to_00th_min"; do
-        for segregated in "segregated" "not_segregated"; do
-            for transformed in "transformed" "not_transformed"; do
-                for loss in "L1_loss" "MSE_loss" "weighted_MSE_loss" "focal_MSE_loss" "profiler_loss"; do
+for station in "PROF_BRON" "PROF_STAT" "PROF_OWEG" "PROF_REDH"; do
+    for hourly_data_method in "Averaged_over_55th_to_5th_min"; do
+        for segregated in "segregated"; do
+            for transformed in "not_transformed"; do
+                for loss in "Kho_loss_on_profile"; do
                     for Ens in $(seq 0 9); do
                         # Select the GPU device in a round-robin manner
                         gpu_device=${gpu_devices[$((process_count % gpu_count))]}

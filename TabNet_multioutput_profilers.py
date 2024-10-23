@@ -80,13 +80,16 @@ else:
 
 experiment = f'ERA5_to_profilers'
 
-tabnet_param_file = 'tabnet_params_8th_set.csv'
+tabnet_param_file = 'best_model_params.csv'
 
 segregated = sys.argv[3]
 transformed = sys.argv[4]
 loss_function = sys.argv[5]
 Ens = int(sys.argv[6])
 gpu_device = sys.argv[7]
+
+data_seed = randSeed
+rng_data = np.random.default_rng(seed=data_seed)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu_device
 
@@ -102,7 +105,7 @@ if segregated == 'segregated':
 else:
     segregate_arg = None
 X_train, Y_train, X_valid, Y_valid = data_processing(input_file,Coeff_file,
-                                                    input_times_freq,input_variables,target_variables,train_dates_range,station_id,val_arg=True, segregate_arg=segregate_arg)
+                                                    input_times_freq,input_variables,target_variables,train_dates_range,station_id,val_arg=True, segregate_arg=segregate_arg,rng_data=rng_data)
 print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape)
 
 
