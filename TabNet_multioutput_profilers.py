@@ -57,13 +57,13 @@ input_variables = [
 ]
 input_times_freq = 1 #ratio between the target times and input times, 12 for NOW23 data
 
-#sys.argv = ['', 'PROF_BRON','Averaged_over_55th_to_5th_min', 'segregated', 'not_transformed','Kho_loss_on_profile',8, "1"]    # for debugging
+#sys.argv = ['', 'PROF_BRON','Averaged_over_55th_to_5th_min', ('2021-01-01T00:00:00', '2022-12-31T23:00:00'), 'segregated', 'not_transformed','Kho_loss_on_profile',8, "1"]    # for debugging
 station_id = sys.argv[1]
 hourly_data_method = sys.argv[2]
 Coeff_file = f'data/Profiler_Chebyshev_Coefficients_with_outliers/{hourly_data_method}/{station_id}.nc'
 target_variables = [0,1,2,3,4]
 
-train_dates_range = ('2021-01-01T00:00:00', '2022-12-31T23:00:00')
+train_dates_range = ast.literal_eval(sys.argv[3])
 test_dates_range = ('2018-01-01T00:00:00', '2020-12-31T23:00:00')
 
 # Extract years from the date range
@@ -82,11 +82,11 @@ experiment = f'ERA5_to_profilers'
 
 tabnet_param_file = 'best_model_params.csv'
 
-segregated = sys.argv[3]
-transformed = sys.argv[4]
-loss_function = sys.argv[5]
-Ens = int(sys.argv[6])
-gpu_device = sys.argv[7]
+segregated = sys.argv[4]
+transformed = sys.argv[5]
+loss_function = sys.argv[6]
+Ens = int(sys.argv[7])
+gpu_device = sys.argv[8]
 
 data_seed = randSeed
 rng_data = np.random.default_rng(seed=data_seed)
