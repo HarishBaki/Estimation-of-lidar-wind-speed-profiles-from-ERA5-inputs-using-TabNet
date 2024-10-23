@@ -7,7 +7,7 @@ gpu_count=${#gpu_devices[@]} # Count the number of GPUs available
 
 process_count=0  # Counter to track running processes
 
-for station in "PROF_BRON" "PROF_STAT" "PROF_OWEG" "PROF_REDH"; do
+for station in "PROF_QUEE" "PROF_BRON" "PROF_STAT" "PROF_OWEG" "PROF_REDH"; do
     for hourly_data_method in "Averaged_over_55th_to_5th_min"; do
         for segregated in "segregated"; do
             for transformed in "not_transformed"; do
@@ -15,7 +15,7 @@ for station in "PROF_BRON" "PROF_STAT" "PROF_OWEG" "PROF_REDH"; do
                     for Ens in $(seq 0 9); do
                         # Select the GPU device in a round-robin manner
                         gpu_device=${gpu_devices[$((process_count % gpu_count))]}
-
+                        echo "Running station $station hourly_data_method $hourly_data_method segregated $segregated transformed $transformed loss $loss Ens $Ens on GPU $gpu_device"
                         # Run the Python script
                         python TabNet_multioutput_profilers.py "$station" "$hourly_data_method" "$segregated" "$transformed" "$loss" "$Ens" "$gpu_device" &
 
