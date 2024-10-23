@@ -63,7 +63,7 @@ hourly_data_method = sys.argv[2]
 Coeff_file = f'data/Profiler_Chebyshev_Coefficients_with_outliers/{hourly_data_method}/{station_id}.nc'
 target_variables = [0,1,2,3,4]
 
-train_dates_range = ('2021-01-01T00:00:00', '2021-12-31T23:00:00')
+train_dates_range = ('2021-01-01T00:00:00', '2022-12-31T23:00:00')
 test_dates_range = ('2018-01-01T00:00:00', '2020-12-31T23:00:00')
 
 # Extract years from the date range
