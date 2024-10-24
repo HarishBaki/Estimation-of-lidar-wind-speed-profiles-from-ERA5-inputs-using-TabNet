@@ -211,6 +211,8 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
         is_nan = np.isnan(X).any(axis=1)
         X = X[~is_nan, :]
         Y = Y[0, ~is_nan, :]
+        print(f"Dropping {is_nan.sum()} validation samples due to NaNs")
+        print(f"New validation shape: {X.shape}, {Y.shape}")
 
         return X, Y
 
