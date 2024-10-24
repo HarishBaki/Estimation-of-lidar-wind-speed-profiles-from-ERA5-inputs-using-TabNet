@@ -184,13 +184,20 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
         X_valid = inputs[input_variables].sel(valid_time=time_coord.values).sel(valid_time=validation_times, location=station_id).to_array().values.T
         Y_valid = ChSh_Coeff.sel(time=time_coord.values).sel(coeff=target_variables,time=validation_times).to_array().values       
     
-        # Replace NaN values with zeros. This is necessary since the ERA5 data may have nan values.
-        X_train = np.nan_to_num(X_train)
-        Y_train = np.nan_to_num(Y_train)
-        X_valid = np.nan_to_num(X_valid)
-        Y_valid = np.nan_to_num(Y_valid)
+        # Drop nans in time dimension
+        is_train_nan = np.isnan(X_train).any(axis=1)
+        X_train = X_train[~is_train_nan, :]
+        Y_train = Y_train[0, ~is_train_nan, :]
+        print(f"Dropping {is_train_nan.sum()} training samples due to NaNs")
+        print(f"New training shape: {X_train.shape}, {Y_train.shape}")
+
+        is_valid_nan = np.isnan(X_valid).any(axis=1)
+        X_valid = X_valid[~is_valid_nan, :]
+        Y_valid = Y_valid[0, ~is_valid_nan, :]
+        print(f"Dropping {is_valid_nan.sum()} validation samples due to NaNs")
+        print(f"New validation shape: {X_valid.shape}, {Y_valid.shape}")
         
-        return X_train, Y_train[0,...], X_valid, Y_valid[0,...]
+        return X_train, Y_train, X_valid, Y_valid
 
     else:
         #X = np.empty((0, len(input_variables)))
@@ -201,10 +208,11 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
         Y = ChSh_Coeff.sel(time=time_coord.values).sel(coeff=target_variables).to_array().values
 
         # Replace NaN values with zeros
-        X = np.nan_to_num(X)
-        Y = np.nan_to_num(Y)
+        is_nan = np.isnan(X).any(axis=1)
+        X = X[~is_nan, :]
+        Y = Y[0, ~is_nan, :]
 
-        return X, Y[0,...]
+        return X, Y
 
 def L1_loss(y_pred, y_true):
     """

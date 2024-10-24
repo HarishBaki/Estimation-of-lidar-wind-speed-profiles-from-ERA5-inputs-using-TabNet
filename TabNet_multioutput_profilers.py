@@ -50,20 +50,21 @@ randSeed = np.random.randint(1000)
 input_file = 'data/ERA5.nc'
 input_variables = [
     "10ws", "100ws", "100alpha", "975ws", "950ws", "975wsgrad", "950wsgrad",
-    "zust", "i10fg", "t2m", "skt", "stl1", "d2m", "msl", "blh", "cbh", "ishf", 
-    "ie", "tcc", "lcc", "cape", "cin", "bld", "t_975", "t_950", "2mtempgrad", 
+    "zust", "i10fg", "t2m", "skt", "stl1", "d2m", "msl", "blh", "ishf", 
+    "ie", "tcc", "lcc", "cape", "bld", "t_975", "t_950", "2mtempgrad", 
     "sktempgrad", "dewtempsprd", "975tempgrad", "950tempgrad", "sinHR", 
     "cosHR", "sinJDAY", "cosJDAY"
 ]
 input_times_freq = 1 #ratio between the target times and input times, 12 for NOW23 data
 
-#sys.argv = ['', 'PROF_BRON','Averaged_over_55th_to_5th_min', ('2021-01-01T00:00:00', '2022-12-31T23:00:00'), 'segregated', 'not_transformed','Kho_loss_on_profile',8, "1"]    # for debugging
+sys.argv = ['', 'PROF_BRON','Averaged_over_55th_to_5th_min', ('2018-01-01T00:00:00', '2018-12-31T23:00:00'), 'segregated', 'not_transformed','Kho_loss_on_profile',8, "1"]    # for debugging
 station_id = sys.argv[1]
 hourly_data_method = sys.argv[2]
 Coeff_file = f'data/Profiler_Chebyshev_Coefficients_with_outliers/{hourly_data_method}/{station_id}.nc'
 target_variables = [0,1,2,3,4]
 
-train_dates_range = ast.literal_eval(sys.argv[3])
+#train_dates_range = ast.literal_eval(sys.argv[3])
+train_dates_range = sys.argv[3]
 test_dates_range = ('2018-01-01T00:00:00', '2020-12-31T23:00:00')
 
 # Extract years from the date range
@@ -94,8 +95,8 @@ rng_data = np.random.default_rng(seed=data_seed)
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu_device
 
 
-model_output_dir = f'trained_models/{experiment}/{station_id}/{hourly_data_method}/{years_experiment}/{segregated}/{transformed}/{loss_function}/Ens{Ens}'
-os.system(f'mkdir -p {model_output_dir}')
+#model_output_dir = f'trained_models/{experiment}/{station_id}/{hourly_data_method}/{years_experiment}/{segregated}/{transformed}/{loss_function}/Ens{Ens}'
+#os.system(f'mkdir -p {model_output_dir}')
 
 
 # In[7]:
