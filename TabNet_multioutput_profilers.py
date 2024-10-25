@@ -40,7 +40,7 @@ randSeed = np.random.randint(1000)
 if len(sys.argv) == 1:
     sys.argv = ['', ('PROF_CLYM','PROF_OWEG','PROF_STAT','PROF_STON','PROF_QUEE','PROF_SUFF','PROF_BUFF','PROF_BELL','PROF_TUPP','PROF_CHAZ'), 
                 'Averaged_over_55th_to_5th_min', 
-                ('2021-01-01T00:00:00', '2023-12-31T23:00:00'), 
+                ('2018-01-01T00:00:00', '2018-12-31T23:00:00'), 
                 'segregated', 'not_transformed','MSE_loss',9, "1"]    # for debugging
     print('Debugging mode: sys.argv set to ', sys.argv)
 
@@ -124,7 +124,7 @@ for station_id in station_ids:
         segregate_arg = True
     else:
         segregate_arg = None
-    X_train, Y_train, X_valid, Y_valid = data_processing(input_file,Coeff_file,
+    X_train, Y_train, X_valid, Y_valid,_,_ = data_processing(input_file,Coeff_file,
                                                         input_times_freq,input_variables,target_variables,train_dates_range,station_id,val_arg=True, segregate_arg=segregate_arg,rng_data=rng_data)
     print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape)
     # Collect training and validation data for all stations
@@ -141,7 +141,7 @@ for station_id in test_station_ids:
         segregate_arg = True
     else:
         segregate_arg = None
-    X_test, Y_test = data_processing(input_file,Coeff_file,
+    X_test, Y_test, _ = data_processing(input_file,Coeff_file,
                                     input_times_freq,input_variables,target_variables,test_dates_range,station_id,val_arg=None, segregate_arg=segregate_arg)
     print(X_test.shape, Y_test.shape)
     # Collect testing data for all stations

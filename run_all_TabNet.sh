@@ -17,13 +17,7 @@ ranges=(
     "('2022-01-01T00:00:00', '2023-12-31T23:00:00')"
     "('2021-01-01T00:00:00', '2023-12-31T23:00:00')"
 )
-ranges=(
-    "('2022-01-01T00:00:00', '2022-12-31T23:00:00')"
-    "('2023-01-01T00:00:00', '2023-12-31T23:00:00')"
-    "('2022-01-01T00:00:00', '2023-12-31T23:00:00')"
-)
 losses=("L1_loss" "MSE_loss" "profiler_loss" "Kho_loss" "Kho_loss_on_profile")
-losses=("Kho_loss_on_profile")
 
 for station in "${stations[@]}"; do
     for hourly_data_method in "Averaged_over_55th_to_5th_min"; do

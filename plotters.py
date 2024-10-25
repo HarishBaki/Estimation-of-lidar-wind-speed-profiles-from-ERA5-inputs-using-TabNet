@@ -45,3 +45,4 @@ def hexbin_plotter(fig,gs,Y,pred,title,text_arg=None,xlabel=None,ylabel=None):
     max_value = Y.max()
     ax_hexbin.set_xlim(min_value, max_value)
     ax_hexbin.set_ylim(min_value, max_value)
+    ax_hexbin.plot([min_value, max_value], [min_value, max_value], 'k--')

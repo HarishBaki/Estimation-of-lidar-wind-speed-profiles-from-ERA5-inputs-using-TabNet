@@ -35,6 +35,7 @@ lvls = [1000,975,950]
 pars = ['u','v','t']
 for par in pars:
     for level in lvls:
+        par_dir = f'data/ERA5_variables/{par}_{level}'
         # --- combining all years data ---#
         ds = xr.open_mfdataset(f'{par_dir}/*.nc',
                                     parallel=True)

@@ -143,13 +143,26 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
     '''
     inputs = xr.open_dataset(input_file)
     ChSh_Coeff = xr.open_dataset(ChSh_Coeff_file)
-
-    # we chose the Chebyshev coefficients time as the reference time, since there will be gaps in it.
+    '''
+    There are two conditioning we have to consider:
+    1. We have to segregate the data based on the outliers in the Chebyshev coefficients, thus take the time indices of the Chebyshev coefficients as base.
+    2. We have to eliminate the NaN values in the input ERA5 variables, thus take the time indices of ERA5 inputs.
+    To balance, we have to take the intersection of the two time indices.
+    '''
+    X = inputs[input_variables].sel(location=station_id).to_array() # X is a 2D array, with the first dimension as the input variables.
+    Y = ChSh_Coeff.sel(coeff=target_variables).to_array()   # Remember, Y is a 3D array, with the first dimension as the Chebyshev coefficients, then time, and coeff.
+    Y = Y.isel(variable=0).drop('variable') # drop the variable dimension, since it is not needed.
+    Input_notmissing_mask = (X.sel(valid_time=slice(*dates_range,input_times_freq))).notnull().all(dim='variable')
+    input_time_coord = X.sel(valid_time=slice(*dates_range,input_times_freq)).valid_time.where(Input_notmissing_mask,drop=True)
     if segregate_arg:
-        time_coord = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).where(ChSh_Coeff.outlier==1,drop=True).coords['time']
-        print('Segregated times:',time_coord.size)
+        target_time_coord = Y.sel(time=slice(*dates_range,input_times_freq)).where(ChSh_Coeff.outlier==1,drop=True).coords['time']
+        print('Segregated times:',target_time_coord.size)
     else:
-        time_coord = ChSh_Coeff.sel(time=slice(*dates_range,input_times_freq)).coords['time']
+        target_time_coord = Y.sel(time=slice(*dates_range,input_times_freq)).coords['time']
+        print('All times:',target_time_coord.size)
+    # Now intersecting them both. I cannot do np.intersect1d, since it converts the data into numpy array, and I need the xarray data.
+    time_coord = target_time_coord.reindex(time=input_time_coord.valid_time.values).dropna(dim='time')
+    print('Intersected times:', time_coord.size)
     if val_arg:
         #=== Extracting training and validation indices ===# 
         years = time_coord.dt.year
@@ -175,46 +188,23 @@ def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,
                     validation_times[validation_indices] = True
                 except:
                     pass
-    
+        train_time_coord = time_coord.sel(time=~validation_times,drop=True)
+        valid_time_coord = time_coord.sel(time=validation_times,drop=True)
         # --- training ---#
-        X_train = inputs[input_variables].sel(valid_time=time_coord.values).sel(valid_time=~validation_times, location=station_id).to_array().values.T
-        Y_train = ChSh_Coeff.sel(time=time_coord.values).sel(coeff=target_variables,time=~validation_times).to_array().values
+        X_train = X.sel(valid_time=train_time_coord.values).values.T
+        Y_train = Y.sel(time=train_time_coord.values).values
 
         # --- vlaidation ---#
-        X_valid = inputs[input_variables].sel(valid_time=time_coord.values).sel(valid_time=validation_times, location=station_id).to_array().values.T
-        Y_valid = ChSh_Coeff.sel(time=time_coord.values).sel(coeff=target_variables,time=validation_times).to_array().values       
-    
-        # Drop nans in time dimension
-        is_train_nan = np.isnan(X_train).any(axis=1)
-        X_train = X_train[~is_train_nan, :]
-        Y_train = Y_train[0, ~is_train_nan, :]
-        print(f"Dropping {is_train_nan.sum()} training samples due to NaNs")
-        print(f"New training shape: {X_train.shape}, {Y_train.shape}")
-
-        is_valid_nan = np.isnan(X_valid).any(axis=1)
-        X_valid = X_valid[~is_valid_nan, :]
-        Y_valid = Y_valid[0, ~is_valid_nan, :]
-        print(f"Dropping {is_valid_nan.sum()} validation samples due to NaNs")
-        print(f"New validation shape: {X_valid.shape}, {Y_valid.shape}")
+        X_valid = X.sel(valid_time=valid_time_coord.values).values.T
+        Y_valid = Y.sel(time=valid_time_coord.values).values       
         
-        return X_train, Y_train, X_valid, Y_valid
+        return X_train, Y_train, X_valid, Y_valid, train_time_coord, valid_time_coord
 
     else:
-        #X = np.empty((0, len(input_variables)))
-        #Y = np.empty((0, len(target_variables)))
-
         # --- testing ---#
-        X = inputs[input_variables].sel(valid_time=time_coord.values, location=station_id).to_array().values.T
-        Y = ChSh_Coeff.sel(time=time_coord.values).sel(coeff=target_variables).to_array().values
-
-        # Replace NaN values with zeros
-        is_nan = np.isnan(X).any(axis=1)
-        X = X[~is_nan, :]
-        Y = Y[0, ~is_nan, :]
-        print(f"Dropping {is_nan.sum()} validation samples due to NaNs")
-        print(f"New validation shape: {X.shape}, {Y.shape}")
-
-        return X, Y
+        X_test = X.sel(valid_time=time_coord.values).values.T
+        Y_test = Y.sel(time=time_coord.values).values
+        return X_test, Y_test, time_coord
 
 def L1_loss(y_pred, y_true):
     """
