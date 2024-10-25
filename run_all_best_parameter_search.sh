@@ -10,7 +10,7 @@ hourly_data_method="Averaged_over_55th_to_5th_min"
 segregated="segregated"
 transformed="not_transformed"
 loss="Kho_loss_on_profile"
-for Ens in $(seq 1 9); do
+for Ens in $(seq 0 9); do
     data_seed=${RANDOM:0:100}
     for trial in $(seq 0 99); do
         hp_seed=${RANDOM:0:100}
