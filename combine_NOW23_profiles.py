@@ -19,10 +19,6 @@ for index, row in profiler_stations.iterrows():
     print(station_id)
 
     target_file = f'{output_dir}/{station_id}.nc'
-    if os.path.exists(target_file):
-        print(f'Skipping station {station_id} as it already exists')
-        continue
-
     try:
         # Load NOW23 data
         dfs = []
@@ -32,7 +28,7 @@ for index, row in profiler_stations.iterrows():
             dfs.append(df)
         combined_df = pd.concat(dfs,axis=0)
         z = np.array([10] + list(range(20, 301, 20)) + [400, 500])
-        profile_da = xr.DataArray(combined_df, dims=['time', 'levels'], coords={'time': combined_df.index.values, 'levels': z})
+        profile_da = xr.DataArray(combined_df, dims=['time', 'levels'], coords={'time': combined_df.index.values, 'levels': z}, name='wind_speed')
         profile_da.to_netcdf(target_file)
 
     except Exception as e:
