@@ -167,4 +167,3 @@ data
 *.log
 trained_models/
 random_samples_plots/
-NAWEA/
