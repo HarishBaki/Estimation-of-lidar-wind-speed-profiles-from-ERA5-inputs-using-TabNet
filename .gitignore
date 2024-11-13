@@ -168,3 +168,4 @@ data
 trained_models/
 random_samples_plots/
 NAWEA
+pytorch_tabnet
