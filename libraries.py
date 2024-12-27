@@ -129,7 +129,7 @@ def Basu_Coeff(z,u):
     popt, pcov = curve_fit(Basu_WindProfile, z, u, p0=[1, 1, 1])  # p0 are initial guesses for parameters a, b, and c
     return popt
 
-def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,target_variables, dates_range, station_id,val_arg=None,segregate_arg=None,rng_data=None):
+def data_processing_NYSP(input_file,ChSh_Coeff_file,input_times_freq,input_variables,target_variables, dates_range, station_id,val_arg=None,segregate_arg=None,rng_data=None):
     '''
     This function reads the nc files and converts them into numpy arrays in the required shape.
     input_file: input variables file (either ERA5 or CERRA)
