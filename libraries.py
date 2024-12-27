@@ -205,6 +205,79 @@ def data_processing_NYSP(input_file,ChSh_Coeff_file,input_times_freq,input_varia
         X_test = X.sel(valid_time=time_coord.values).values.T
         Y_test = Y.sel(time=time_coord.values).values
         return X_test, Y_test, time_coord
+    
+def data_processing(input_file,ChSh_Coeff_file,input_times_freq,input_variables,target_variables, dates_range, station_id,val_arg=None,rng_data=None):
+    '''
+    This function reads the nc files and converts them into numpy arrays in the required shape.
+    input_file: input variables file (either ERA5 or CERRA)
+    ChSh_Coeff_file: target variables file (Chebyshev coefficients file)
+    input_time_freq: time frequency of the input variables, since the CERRA and ERA5 are not at the same time frequencey
+    input_variables: names of the input variables
+    target_variables: target Chebyshev coefficients 
+    dates_range: range of the dates to read, can be training or testing
+    locations: location indices of the data, out of 11
+    var_arg: whether the function should return validation data also along with training, or only training, or testing
+    '''
+    inputs = xr.open_dataset(input_file)
+    ChSh_Coeff = xr.open_dataset(ChSh_Coeff_file)
+    '''
+    There are two conditioning we have to consider:
+    1. We have to segregate the data based on the outliers in the Chebyshev coefficients, thus take the time indices of the Chebyshev coefficients as base.
+    2. We have to eliminate the NaN values in the input ERA5 variables, thus take the time indices of ERA5 inputs.
+    To balance, we have to take the intersection of the two time indices.
+    '''
+    X = inputs[input_variables].sel(location=station_id).to_array() # X is a 2D array, with the first dimension as the input variables.
+    Y = ChSh_Coeff.sel(points=station_id,coeff=target_variables).to_array()   # Remember, Y is a 3D array, with the first dimension as the Chebyshev coefficients, then time, and coeff.
+    Y = Y.isel(variable=0).drop('variable') # drop the variable dimension, since it is not needed.
+    Input_notmissing_mask = (X.sel(valid_time=slice(*dates_range,input_times_freq))).notnull().all(dim='variable')
+    input_time_coord = X.sel(valid_time=slice(*dates_range,input_times_freq)).valid_time.where(Input_notmissing_mask,drop=True)
+    target_time_coord = Y.sel(time=slice(*dates_range,input_times_freq)).coords['time']
+    print('All times:',target_time_coord.size)
+    # Now intersecting them both. I cannot do np.intersect1d, since it converts the data into numpy array, and I need the xarray data.
+    time_coord = target_time_coord.reindex(time=input_time_coord.valid_time.values).dropna(dim='time')
+    print('Intersected times:', time_coord.size)
+    if val_arg:
+        #=== Extracting training and validation indices ===# 
+        years = time_coord.dt.year
+        months = time_coord.dt.month
+        validation_times = np.zeros(len(time_coord), dtype=bool)
+        years = time_coord.dt.year
+        months = time_coord.dt.month
+        validation_times = np.zeros(len(time_coord), dtype=bool)
+        for year in np.unique(years):
+            for month in range(1, 13):
+                # check if you have enough data in the month
+                month_indices = np.where((years == year) & (months == month))[0]
+                '''
+                One problem we have to deal with is not enough data points in a month.
+                Not always, the number of samples in a month is enough to take 6 days of data for validation.
+                Thus, lets consider 20% of the month data for validation.
+                '''
+                validation_window = int(0.2*len(month_indices))
+                try:
+                    start_index = rng_data.choice(len(month_indices) - validation_window - 1)
+                    #print('start_index:',start_index)
+                    validation_indices = month_indices[start_index:start_index + validation_window]
+                    validation_times[validation_indices] = True
+                except:
+                    pass
+        train_time_coord = time_coord.sel(time=~validation_times,drop=True)
+        valid_time_coord = time_coord.sel(time=validation_times,drop=True)
+        # --- training ---#
+        X_train = X.sel(valid_time=train_time_coord.values).values.T
+        Y_train = Y.sel(time=train_time_coord.values).values
+
+        # --- vlaidation ---#
+        X_valid = X.sel(valid_time=valid_time_coord.values).values.T
+        Y_valid = Y.sel(time=valid_time_coord.values).values       
+        
+        return X_train, Y_train, X_valid, Y_valid, train_time_coord, valid_time_coord
+
+    else:
+        # --- testing ---#
+        X_test = X.sel(valid_time=time_coord.values).values.T
+        Y_test = Y.sel(time=time_coord.values).values
+        return X_test, Y_test, time_coord
 
 def L1_loss(y_pred, y_true):
     """
