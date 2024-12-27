@@ -40,7 +40,7 @@ randSeed = np.random.randint(1000)
 if len(sys.argv) == 1:
     sys.argv = ['', ('P1','P2','P3','P4','P5','P6','P7','P8','P9','P10'), 
                 ('2020-01-01T00:00:00', '2020-12-31T23:00:00'),
-                'not_transformed','MSE_loss',9, "1"]    # for debugging
+                'not_transformed','MSE_loss',9, "0"]    # for debugging
     print('Debugging mode: sys.argv set to ', sys.argv)
 
 # stations can be passed as a list or a single string (for a single station) or a tuple of strings (for multiple stations)
