@@ -38,28 +38,23 @@ randSeed = np.random.randint(1000)
 
 # Simulate passing arguments during debugging
 if len(sys.argv) == 1:
-    sys.argv = ['', ('P1','P2','P3','P4','P5','P6','P7','P8','P9','P10'), 
-                ('2020-01-01T00:00:00', '2020-12-31T23:00:00'),
+    sys.argv = ['', ('2020-01-01T00:00:00', '2020-12-31T23:00:00'),
                 'not_transformed','MSE_loss',9, "0"]    # for debugging
     print('Debugging mode: sys.argv set to ', sys.argv)
 
-# stations can be passed as a list or a single string (for a single station) or a tuple of strings (for multiple stations)
-# However, for debugging, we will pass a tuple of strings, so we need to convert it to a list.
-if isinstance(sys.argv[1], tuple):
-    station_ids = list(sys.argv[1])
-elif isinstance(sys.argv[1], str):
-    station_ids = ast.literal_eval(sys.argv[1])
-else:
-    station_ids = sys.argv[1]
+station_ids = ('P1','P2','P3','P4','P5','P6','P7','P8','P9','P10',
+               'P11','P12','P13','P14','P15','P16','P17','P18','P19','P20',
+               'P21','P22','P23','P24','P25','P26','P27','P28','P29','P30',
+               'P31','P32','P33','P34','P35','P36','P37','P38','P39','P40')
 
 # train_dates_range can be passed as a tuple of strings or a string of a tuple of strings.
 # However, for debugging, we will pass a tuple of strings, so we need to convert it to a list.
-if isinstance(sys.argv[2], tuple):
-    train_dates_range = list(sys.argv[2])
-elif isinstance(sys.argv[2], str):
-    train_dates_range = ast.literal_eval(sys.argv[2])
+if isinstance(sys.argv[1], tuple):
+    train_dates_range = list(sys.argv[1])
+elif isinstance(sys.argv[1], str):
+    train_dates_range = ast.literal_eval(sys.argv[1])
 else:
-    train_dates_range = sys.argv[2]
+    train_dates_range = sys.argv[1]
 
 # Extract years from the date range
 start_date = datetime.fromisoformat(train_dates_range[0])
@@ -73,10 +68,10 @@ if start_year == end_year:
 else:
     years_experiment = f"{start_year}_to_{end_year}"
 
-transformed = sys.argv[3]
-loss_function = sys.argv[4]
-Ens = int(sys.argv[5])
-gpu_device = sys.argv[6]
+transformed = sys.argv[2]
+loss_function = sys.argv[3]
+Ens = int(sys.argv[4])
+gpu_device = sys.argv[5]
 
 # === Input parameters ===
 input_file = 'data/European_region_sample_ERA.nc'
