@@ -155,7 +155,7 @@ def data_processing_NYSP(input_file,ChSh_Coeff_file,input_times_freq,input_varia
     Input_notmissing_mask = (X.sel(valid_time=slice(*dates_range,input_times_freq))).notnull().all(dim='variable')
     input_time_coord = X.sel(valid_time=slice(*dates_range,input_times_freq)).valid_time.where(Input_notmissing_mask,drop=True)
     if segregate_arg:
-        target_time_coord = Y.sel(time=slice(*dates_range,input_times_freq)).where(ChSh_Coeff.outlier==1,drop=True).coords['time']
+        target_time_coord = Y.sel(time=slice(*dates_range,input_times_freq)).where(ChSh_Coeff.non_missing_outlier==1,drop=True).coords['time']
         print('Segregated times:',target_time_coord.size)
     else:
         target_time_coord = Y.sel(time=slice(*dates_range,input_times_freq)).coords['time']
