@@ -15,6 +15,10 @@ import os, sys, glob, re, time, math, calendar
 import flaml
 from flaml import AutoML
 
+import pickle
+from pickle import dump, load
+import joblib
+
 # import custom functions
 sys.path.append('/')
 from libraries import *
@@ -168,3 +172,119 @@ print(f"Final Y_valid shape: {Y_valid.shape}")
 print(f"Final X_test shape: {X_test.shape}")
 print(f"Final Y_test shape: {Y_test.shape}")
 
+# === normalizing the training and validaiton data ---#
+if transformed == 'transformed':
+    min_max_scaler = preprocessing.MinMaxScaler().fit(Y_train)
+
+    Y_train = min_max_scaler.transform(Y_train)
+    Y_valid = min_max_scaler.transform(Y_valid)
+
+    # --- save the normalizing function ---#
+    joblib.dump(min_max_scaler, f'{model_output_dir}/min_max_scaler.joblib')
+    print('min_max_scaler dumped')
+
+# === Train the model ===
+automl_settings = {
+    "time_budget": 3600,  # in seconds
+    "metric": 'r2',
+    "task": 'regression',
+    "estimator_list": ['xgboost'],
+    "early_stop": True,
+    "model_history": True, #A boolean of whether to keep the best model per estimator
+    "retrain_full": True, #whether to retrain the selected model on the full training data
+    "custom_hp": {
+        "xgboost": {
+            "tree_method": {
+                "domain": "gpu_hist",       # Use GPU for tree construction
+                "type": "fixed"
+            },
+            "predictor": {
+                "domain": "gpu_predictor",  # Use GPU for prediction
+                "type": "fixed"
+            }
+        }
+    }
+}
+
+# === Training individual models using single target variables ===
+# === Target variables ===#
+target_variables = [0,1,2,3,4] #represent coefficients from 0 to 4
+for target_variable in (target_variables):
+    # === initialize automl regressor ===#
+    automl = AutoML()
+    # === Train AUTOML regressor ===#
+    X_tr,y_tr,X_val,y_val = X_train, Y_train[:,target_variable:target_variable+1], X_valid, Y_valid[:,target_variable:target_variable+1]
+    print(X_tr.shape,y_tr.shape,X_val.shape,y_val.shape)
+
+    automl.fit(X_train=X_tr, y_train = y_tr,X_val=X_val, y_val=y_val, **automl_settings)
+
+    # === save the model ===#
+    fSTR = f'{model_output_dir}/C{target_variable}.pkl'
+    with open(fSTR, "wb") as f:
+        dump(automl.model, f, pickle.HIGHEST_PROTOCOL)
+    print('dumped')
+
+# === Training stepping stone models using single target variables ===
+for target_variable in ([1,2,3,4]):  # This loop represents the stepping stone models
+    # === initialize automl regressor ===#
+    automl = AutoML()
+    # === Train AUTOML regressor ===#
+    X_tr = np.hstack([X_train,Y_train[:,0:target_variable]])
+    y_tr = Y_train[:,target_variable:target_variable+1]
+    X_val = np.hstack([X_valid,Y_valid[:,0:target_variable]])
+    y_val = Y_valid[:,target_variable:target_variable+1]
+    print(X_tr.shape,y_tr.shape,X_val.shape,y_val.shape)
+
+    automl.fit(X_train=X_tr, y_train = y_tr,X_val=X_val, y_val=y_val, **automl_settings)
+
+    # === save the model ===#
+    fSTR = f'{model_output_dir}/C{target_variable}_step{target_variable}.pkl'
+    with open(fSTR, "wb") as f:
+        dump(automl.model, f, pickle.HIGHEST_PROTOCOL)
+    print('dumped')
+
+# === Plotting hexbins ===
+fig = plt.figure(figsize=(15, 7), constrained_layout=True)
+gs = fig.add_gridspec(2,len(target_variables))
+
+# --- First row, with step 0 ---
+Y_pred = []
+for target_variable in target_variables:
+    # load the respective model
+    fSTR = f'{model_output_dir}/C{target_variable}.pkl'
+    with open(fSTR, "rb") as f:
+        model = load(f)
+    y_pred = model.predict(X_test)
+    y_pred = y_pred.reshape(-1,1)
+    Y_pred = np.hstack([Y_pred,y_pred]) if target_variable>0 else y_pred
+
+if transformed == 'transformed':
+    Y_pred = min_max_scaler.inverse_transform(Y_pred)
+
+for target_variable in (target_variables):
+    ylabel = 'Single target\n Predicted' if target_variable == 0 else ''
+    hexbin_plotter(fig,gs[0,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],f'Coefficient {target_variable}',text_arg=True, xlabel='True', ylabel=ylabel)
+
+# --- Second row, with step 1 to 4 ---
+Y_pred = []
+for target_variable in ([0,1,2,3,4]):
+    # load the respective model
+    fSTR = f'{model_output_dir}/C{target_variable}_step{target_variable}.pkl' if target_variable>0 else f'{model_output_dir}/C{target_variable}.pkl'
+    with open(fSTR, "rb") as f:
+        model = load(f)
+    X_te = X_test if target_variable==0 else np.hstack([X_test,Y_pred])
+    y_te = Y_test[:,target_variable:target_variable+1]
+    print(X_te.shape,y_te.shape)
+    y_pred = model.predict(X_te)
+    y_pred = y_pred.reshape(-1,1)
+    Y_pred = np.hstack([Y_pred,y_pred]) if target_variable>0 else y_pred
+
+if transformed == 'transformed':
+    Y_pred = min_max_scaler.inverse_transform(Y_pred)
+
+for target_variable in ([1,2,3,4]):
+    ylabel = 'Steppingwise target\n Predicted' if target_variable == 1 else ''
+    hexbin_plotter(fig,gs[1,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],f'Coefficient {target_variable}',text_arg=True, xlabel='True', ylabel=ylabel)
+
+plt.savefig(f'{model_output_dir}/hexbin.png')
+plt.close()
