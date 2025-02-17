@@ -14,6 +14,7 @@ import os, sys, glob, re, time, math, calendar
 
 import flaml
 from flaml import AutoML
+from multiprocessing import Process
 
 import pickle
 from pickle import dump, load
@@ -30,10 +31,10 @@ randSeed = np.random.randint(1000)
 
 # Simulate passing arguments during debugging
 if len(sys.argv) == 1:
-    sys.argv = ['', ('PROF_CLYM','PROF_OWEG','PROF_STAT','PROF_STON','PROF_QUEE','PROF_SUFF','PROF_BUFF','PROF_BELL','PROF_TUPP','PROF_CHAZ'), 
+    sys.argv = ['', ('PROF_OWEG'), 
                 'Averaged_over_55th_to_5th_min', 
-                ('2021-01-01T00:00:00', '2021-12-31T23:00:00'), 
-                'segregated', 'not_transformed','r2',9, "1"]    # for debugging
+                ('2021-01-01T00:00:00', '2023-12-31T23:00:00'), 
+                'segregated', 'transformed','rmse',0, "1"]    # for debugging
     print('Debugging mode: sys.argv set to ', sys.argv)
 
 # stations can be passed as a list or a single string (for a single station) or a tuple of strings (for multiple stations)
@@ -91,7 +92,8 @@ input_times_freq = 1 #ratio between the target times and input times, 12 for NOW
 
 target_variables = [0,1,2,3,4]
 
-test_station_ids = ('PROF_WANT','PROF_BRON','PROF_REDH','PROF_JORD')
+#test_station_ids = ('PROF_WANT','PROF_BRON','PROF_REDH','PROF_JORD')
+test_station_ids = station_ids
 test_dates_range = ('2018-01-01T00:00:00', '2020-12-31T23:00:00')
 
 experiment = f'ERA5_to_profilers'
@@ -101,7 +103,7 @@ tabnet_param_file = 'best_model_params.csv'
 data_seed = randSeed
 rng_data = np.random.default_rng(seed=data_seed)
 
-os.environ["CUDA_VISIBLE_DEVICES"] = gpu_device
+#os.environ["CUDA_VISIBLE_DEVICES"] = gpu_device
 
 if len(station_ids) == 1:
     station_id = station_ids[0]
@@ -172,6 +174,9 @@ print(f"Final Y_valid shape: {Y_valid.shape}")
 print(f"Final X_test shape: {X_test.shape}")
 print(f"Final Y_test shape: {Y_test.shape}")
 
+
+# === Train the model ===
+
 # === normalizing the training and validaiton data ---#
 if transformed == 'transformed':
     min_max_scaler = preprocessing.MinMaxScaler().fit(Y_train)
@@ -183,10 +188,9 @@ if transformed == 'transformed':
     joblib.dump(min_max_scaler, f'{model_output_dir}/min_max_scaler.joblib')
     print('min_max_scaler dumped')
 
-# === Train the model ===
 automl_settings = {
     "time_budget": 3600,  # in seconds
-    "metric": 'r2',
+    "metric": loss_function,
     "task": 'regression',
     "estimator_list": ['xgboost'],
     "early_stop": True,
@@ -206,46 +210,74 @@ automl_settings = {
     }
 }
 
-# === Training individual models using single target variables ===
-# === Target variables ===#
-target_variables = [0,1,2,3,4] #represent coefficients from 0 to 4
-for target_variable in (target_variables):
-    # === initialize automl regressor ===#
+# === running the 9 process across 3 GPUs ===
+gpu_devices = [0, 1, 2]
+
+# Function to train base models
+def train_base_model(target_variable, gpu_device):
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_device)
+    print(f"Training base model for target {target_variable} on GPU {gpu_device}")
+
     automl = AutoML()
-    # === Train AUTOML regressor ===#
-    X_tr,y_tr,X_val,y_val = X_train, Y_train[:,target_variable:target_variable+1], X_valid, Y_valid[:,target_variable:target_variable+1]
-    print(X_tr.shape,y_tr.shape,X_val.shape,y_val.shape)
+    X_tr, y_tr = X_train, Y_train[:, target_variable:target_variable+1]
+    X_val, y_val = X_valid, Y_valid[:, target_variable:target_variable+1]
 
-    automl.fit(X_train=X_tr, y_train = y_tr,X_val=X_val, y_val=y_val, **automl_settings)
+    model_path = f'{model_output_dir}/C{target_variable}.pkl'
+    # --- for warm start ---#
+    with open(model_path, "rb") as f:
+        automl_prev_model = load(f)
+    automl.fit(X_train=X_tr, y_train=y_tr, X_val=X_val, y_val=y_val,starting_points=automl_prev_model.best_config_per_estimator, **automl_settings)
+    with open(model_path, "wb") as f:
+        dump(automl, f)
+    print(f"Base model {target_variable} saved to {model_path}")
 
-    # === save the model ===#
-    fSTR = f'{model_output_dir}/C{target_variable}.pkl'
-    with open(fSTR, "wb") as f:
-        dump(automl.model, f, pickle.HIGHEST_PROTOCOL)
-    print('dumped')
+# Function to train stepping stone models
+def train_step_model(target_variable, gpu_device):
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_device)
+    print(f"Training stepping stone model for target {target_variable} on GPU {gpu_device}")
 
-# === Training stepping stone models using single target variables ===
-for target_variable in ([1,2,3,4]):  # This loop represents the stepping stone models
-    # === initialize automl regressor ===#
     automl = AutoML()
-    # === Train AUTOML regressor ===#
-    X_tr = np.hstack([X_train,Y_train[:,0:target_variable]])
-    y_tr = Y_train[:,target_variable:target_variable+1]
-    X_val = np.hstack([X_valid,Y_valid[:,0:target_variable]])
-    y_val = Y_valid[:,target_variable:target_variable+1]
-    print(X_tr.shape,y_tr.shape,X_val.shape,y_val.shape)
+    X_tr = np.hstack([X_train, Y_train[:, :target_variable]])
+    y_tr = Y_train[:, target_variable:target_variable+1]
+    X_val = np.hstack([X_valid, Y_valid[:, :target_variable]])
+    y_val = Y_valid[:, target_variable:target_variable+1]
 
-    automl.fit(X_train=X_tr, y_train = y_tr,X_val=X_val, y_val=y_val, **automl_settings)
+    model_path = f'{model_output_dir}/C{target_variable}_step{target_variable}.pkl'
+    # --- for warm start ---#
+    with open(model_path, "rb") as f:
+        automl_prev_model = load(f)
+    automl.fit(X_train=X_tr, y_train=y_tr, X_val=X_val, y_val=y_val,starting_points=automl_prev_model.best_config_per_estimator, **automl_settings)
+    with open(model_path, "wb") as f:
+        dump(automl, f)
+    print(f"Step model {target_variable} saved to {model_path}")
 
-    # === save the model ===#
-    fSTR = f'{model_output_dir}/C{target_variable}_step{target_variable}.pkl'
-    with open(fSTR, "wb") as f:
-        dump(automl.model, f, pickle.HIGHEST_PROTOCOL)
-    print('dumped')
+# Launch parallel training for base models
+processes = []
+idx = 0
+for target_variable in ([0,1,2,3,4]):
+    gpu_device = gpu_devices[idx % len(gpu_devices)]
+    p = Process(target=train_base_model, args=(target_variable, gpu_device))
+    p.start()
+    processes.append(p)
+    idx += 1
+
+# Launch parallel training for stepping stone models
+for target_variable in ([1, 2, 3, 4]):
+    gpu_device = gpu_devices[idx % len(gpu_devices)]
+    p = Process(target=train_step_model, args=(target_variable, gpu_device))
+    p.start()
+    processes.append(p)
+    idx += 1
+
+for p in processes:
+    p.join()
+
+print("Training completed.")
+
 
 # === Plotting hexbins ===
-fig = plt.figure(figsize=(15, 7), constrained_layout=True)
-gs = fig.add_gridspec(2,len(target_variables))
+fig = plt.figure(figsize=(15, 13), constrained_layout=True)
+gs = fig.add_gridspec(4,len(target_variables))
 
 # --- First row, with step 0 ---
 Y_pred = []
@@ -259,32 +291,40 @@ for target_variable in target_variables:
     Y_pred = np.hstack([Y_pred,y_pred]) if target_variable>0 else y_pred
 
 if transformed == 'transformed':
+    min_max_scaler = joblib.load(f'{model_output_dir}/min_max_scaler.joblib')
     Y_pred = min_max_scaler.inverse_transform(Y_pred)
 
 for target_variable in (target_variables):
     ylabel = 'Single target\n Predicted' if target_variable == 0 else ''
     hexbin_plotter(fig,gs[0,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],f'Coefficient {target_variable}',text_arg=True, xlabel='True', ylabel=ylabel)
 
+for target_variable in (target_variables):
+    ylabel = 'Single target\n Predicted' if target_variable == 0 else ''
+    QQ_plotter(fig,gs[1,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],title=f'Coefficient {target_variable}',label='',color='blue',xlabel='True',ylabel=ylabel,one_to_one=True)
+
 # --- Second row, with step 1 to 4 ---
 Y_pred = []
 for target_variable in ([0,1,2,3,4]):
     # load the respective model
-    fSTR = f'{model_output_dir}/C{target_variable}_step{target_variable}.pkl' if target_variable>0 else f'{model_output_dir}/C{target_variable}.pkl'
+    fSTR = f'{model_output_dir}/C{target_variable}.pkl' if target_variable==0 else f'{model_output_dir}/C{target_variable}_step{target_variable}.pkl'
     with open(fSTR, "rb") as f:
         model = load(f)
     X_te = X_test if target_variable==0 else np.hstack([X_test,Y_pred])
     y_te = Y_test[:,target_variable:target_variable+1]
-    print(X_te.shape,y_te.shape)
     y_pred = model.predict(X_te)
     y_pred = y_pred.reshape(-1,1)
     Y_pred = np.hstack([Y_pred,y_pred]) if target_variable>0 else y_pred
 
 if transformed == 'transformed':
+    min_max_scaler = joblib.load(f'{model_output_dir}/min_max_scaler.joblib')
     Y_pred = min_max_scaler.inverse_transform(Y_pred)
 
 for target_variable in ([1,2,3,4]):
     ylabel = 'Steppingwise target\n Predicted' if target_variable == 1 else ''
-    hexbin_plotter(fig,gs[1,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],f'Coefficient {target_variable}',text_arg=True, xlabel='True', ylabel=ylabel)
+    hexbin_plotter(fig,gs[2,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],f'Coefficient {target_variable}',text_arg=True, xlabel='True', ylabel=ylabel)
 
+for target_variable in ([1,2,3,4]):
+    ylabel = 'Stepwise target\n Predicted' if target_variable == 0 else ''
+    QQ_plotter(fig,gs[3,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],title=f'Coefficient {target_variable}',label='',color='blue',xlabel='True',ylabel=ylabel,one_to_one=True)
 plt.savefig(f'{model_output_dir}/hexbin.png')
 plt.close()

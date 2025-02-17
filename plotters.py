@@ -56,3 +56,29 @@ def hexbin_plotter(fig,gs,Y,pred,title,text_arg=None,xlabel=None,ylabel=None):
     ax_hexbin.set_xlim(min_value, max_value)
     ax_hexbin.set_ylim(min_value, max_value)
     ax_hexbin.plot([min_value, max_value], [min_value, max_value], 'k--')
+
+def QQ_plotter(fig,gs,Y,pred,title=None,label=None,color=None,xlabel=None,ylabel=None,one_to_one=False):
+    '''
+    Plots QQ plot between true and predictions of Y
+    fig: figure handle
+    gs: grid spect handle
+    Y: target (train or test or true) 
+    pred: prediction from a model
+    title: title of the figure
+    xlabel_arg: some cases, the xlabel is not needed, this specifies that
+    ylabel_arg: some cases, the ylabel is not needed, this specifies that 
+    '''
+    ax_qq = fig.add_subplot(gs)
+    ax_qq.scatter(np.sort(Y),np.sort(pred),marker='.',color=color,label=label)
+    ax_qq.set_title(f'{title}') if title else ax_qq.set_title('')
+    if xlabel:
+        ax_qq.set_xlabel(xlabel)
+    if ylabel:
+        ax_qq.set_ylabel(ylabel)
+    
+    min_value = Y.min()
+    max_value = Y.max()
+    ax_qq.set_xlim(min_value, max_value)
+    ax_qq.set_ylim(min_value, max_value)
+    if one_to_one:
+        ax_qq.plot([min_value, max_value], [min_value, max_value], 'k--')

@@ -8,22 +8,24 @@ gpu_count=${#gpu_devices[@]} # Count the number of GPUs available
 process_count=0  # Counter to track running processes
 
 # Define the different combinations of train_dates_range
-stations="('PROF_CLYM','PROF_OWEG','PROF_STAT','PROF_STON','PROF_QUEE','PROF_SUFF','PROF_BUFF','PROF_BELL','PROF_TUPP','PROF_CHAZ')"
+#stations="('PROF_CLYM','PROF_OWEG','PROF_STAT','PROF_STON','PROF_QUEE','PROF_SUFF','PROF_BUFF','PROF_BELL','PROF_TUPP','PROF_CHAZ')"
+stations=("PROF_CLYM" "PROF_OWEG" "PROF_STAT" "PROF_STON" "PROF_QUEE" "PROF_SUFF" "PROF_BUFF" "PROF_BELL" "PROF_TUPP" "PROF_CHAZ")
 ranges=(
     "('2021-01-01T00:00:00', '2023-12-31T23:00:00')"
-    "('2022-01-01T00:00:00', '2023-12-31T23:00:00')"
-    "('2021-01-01T00:00:00', '2022-12-31T23:00:00')"
-    "('2021-01-01T00:00:00', '2021-12-31T23:00:00')"
-    "('2022-01-01T00:00:00', '2022-12-31T23:00:00')"
-    "('2023-01-01T00:00:00', '2023-12-31T23:00:00')"
 )
-#("L1_loss" "MSE_loss" "profiler_loss" "Kho_loss" "Kho_loss_on_profile")
-losses=("r2")
+#    "('2022-01-01T00:00:00', '2023-12-31T23:00:00')"
+#    "('2021-01-01T00:00:00', '2022-12-31T23:00:00')"
+#    "('2021-01-01T00:00:00', '2021-12-31T23:00:00')"
+#    "('2022-01-01T00:00:00', '2022-12-31T23:00:00')"
+#    "('2023-01-01T00:00:00', '2023-12-31T23:00:00')"
+
+#("r2")
+losses=("rmse" "r2")
 
 for hourly_data_method in "Averaged_over_55th_to_5th_min"; do
     for range in "${ranges[@]}"; do
         for segregated in "segregated"; do
-            for transformed in "not_transformed"; do
+            for transformed in "not_transformed" "transformed"; do
                 for loss in "${losses[@]}"; do
                     for Ens in $(seq 0 9); do
                         # Select the GPU device in a round-robin manner
