@@ -34,7 +34,7 @@ if len(sys.argv) == 1:
     sys.argv = ['', ('PROF_OWEG'), 
                 'Averaged_over_55th_to_5th_min', 
                 ('2021-01-01T00:00:00', '2023-12-31T23:00:00'), 
-                'segregated', 'transformed','rmse',0, "1"]    # for debugging
+                'segregated', 'not_transformed','rmse',0, "1",0]    # for debugging
     print('Debugging mode: sys.argv set to ', sys.argv)
 
 # stations can be passed as a list or a single string (for a single station) or a tuple of strings (for multiple stations)
@@ -78,6 +78,7 @@ transformed = sys.argv[5]
 loss_function = sys.argv[6]
 Ens = int(sys.argv[7])
 gpu_device = sys.argv[8]
+warm_start = int(sys.argv[9])
 
 # === Input parameters ===
 input_file = 'data/ERA5.nc'
@@ -224,9 +225,12 @@ def train_base_model(target_variable, gpu_device):
 
     model_path = f'{model_output_dir}/C{target_variable}.pkl'
     # --- for warm start ---#
-    with open(model_path, "rb") as f:
-        automl_prev_model = load(f)
-    automl.fit(X_train=X_tr, y_train=y_tr, X_val=X_val, y_val=y_val,starting_points=automl_prev_model.best_config_per_estimator, **automl_settings)
+    if warm_start and os.path.exists(model_path):
+        with open(model_path, "rb") as f:
+            automl_prev_model = load(f)
+        automl.fit(X_train=X_tr, y_train=y_tr, X_val=X_val, y_val=y_val,starting_points=automl_prev_model.best_config_per_estimator, **automl_settings)
+    else:
+        automl.fit(X_train=X_tr, y_train=y_tr, X_val=X_val, y_val=y_val, **automl_settings)
     with open(model_path, "wb") as f:
         dump(automl, f)
     print(f"Base model {target_variable} saved to {model_path}")
@@ -244,9 +248,12 @@ def train_step_model(target_variable, gpu_device):
 
     model_path = f'{model_output_dir}/C{target_variable}_step{target_variable}.pkl'
     # --- for warm start ---#
-    with open(model_path, "rb") as f:
-        automl_prev_model = load(f)
-    automl.fit(X_train=X_tr, y_train=y_tr, X_val=X_val, y_val=y_val,starting_points=automl_prev_model.best_config_per_estimator, **automl_settings)
+    if warm_start and os.path.exists(model_path):
+        with open(model_path, "rb") as f:
+            automl_prev_model = load(f)
+        automl.fit(X_train=X_tr, y_train=y_tr, X_val=X_val, y_val=y_val,starting_points=automl_prev_model.best_config_per_estimator, **automl_settings)
+    else:
+        automl.fit(X_train=X_tr, y_train=y_tr, X_val=X_val, y_val=y_val, **automl_settings)
     with open(model_path, "wb") as f:
         dump(automl, f)
     print(f"Step model {target_variable} saved to {model_path}")
@@ -326,5 +333,5 @@ for target_variable in ([1,2,3,4]):
 for target_variable in ([1,2,3,4]):
     ylabel = 'Stepwise target\n Predicted' if target_variable == 0 else ''
     QQ_plotter(fig,gs[3,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],title=f'Coefficient {target_variable}',label='',color='blue',xlabel='True',ylabel=ylabel,one_to_one=True)
-plt.savefig(f'{model_output_dir}/hexbin.png')
+plt.savefig(f'{model_output_dir}/hexbin_{warm_start}.png')
 plt.close()

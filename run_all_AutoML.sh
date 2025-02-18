@@ -1,5 +1,5 @@
+: '
 # === multi-output training obs targets === #
-
 # Create a bash for loop for different stations
 MAX_CONCURRENT_PROCESSES=9  # Limit to 10 concurrent processes
 gpu_devices=(0 1 2)          # Array of available GPU devices
@@ -20,7 +20,7 @@ ranges=(
 #    "('2023-01-01T00:00:00', '2023-12-31T23:00:00')"
 
 #("r2")
-losses=("rmse" "r2")
+losses=("rmse")
 
 for hourly_data_method in "Averaged_over_55th_to_5th_min"; do
     for range in "${ranges[@]}"; do
@@ -30,14 +30,14 @@ for hourly_data_method in "Averaged_over_55th_to_5th_min"; do
                     for Ens in $(seq 0 9); do
                         # Select the GPU device in a round-robin manner
                         gpu_device=${gpu_devices[$((process_count % gpu_count))]}
-                        echo "Running station $stations hourly_data_method $hourly_data_method train_range "$range" segregated $segregated transformed $transformed loss $loss Ens $Ens on GPU $gpu_device"
+                        echo "Running station $stations hourly_data_method $hourly_data_method train_range "$range" segregated $segregated transformed $transformed loss $loss Ens $Ens on GPU $gpu_device" warm_start 0
                         # Run the Python script
-                        python AutoML_single_to_stepwise_multioutput.py "$stations" "$hourly_data_method" "$range" "$segregated" "$transformed" "$loss" "$Ens" "$gpu_device" &
+                        python AutoML_single_to_stepwise_multioutput.py "$stations" "$hourly_data_method" "$range" "$segregated" "$transformed" "$loss" "$Ens" "$gpu_device" "1" &
 
                         # Increment process count
                         ((process_count++))
 
-                        # Wait if we've reached the max number of concurrent processes
+                        # Wait if we have reached the max number of concurrent processes
                         if ((process_count >= MAX_CONCURRENT_PROCESSES)); then
                             wait
                             process_count=0  # Reset counter after processes complete
@@ -51,5 +51,15 @@ done
 
 # Wait for all remaining background processes to finish
 wait
+
+echo "All done"
+'
+
+stations=("PROF_CLYM" "PROF_OWEG")
+
+for station in "${stations[@]}"; do
+    echo "Running station $station"
+    python AutoML_single_to_stepwise_multioutput.py "$station" "Averaged_over_55th_to_5th_min" "('2021-01-01T00:00:00', '2023-12-31T23:00:00')" "segregated" "not_transformed" "rmse" "0" "0" "1"
+done
 
 echo "All done"
