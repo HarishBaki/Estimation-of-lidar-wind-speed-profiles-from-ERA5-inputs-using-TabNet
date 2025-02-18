@@ -331,7 +331,8 @@ for target_variable in ([1,2,3,4]):
     hexbin_plotter(fig,gs[2,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],f'Coefficient {target_variable}',text_arg=True, xlabel='True', ylabel=ylabel)
 
 for target_variable in ([1,2,3,4]):
+    ax_qq = fig.add_subplot(gs[3,target_variable])
     ylabel = 'Stepwise target\n Predicted' if target_variable == 0 else ''
-    QQ_plotter(fig,gs[3,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],title=f'Coefficient {target_variable}',label='',color='blue',xlabel='True',ylabel=ylabel,one_to_one=True)
+    QQ_plotter(ax_qq,Y_test[:,target_variable],Y_pred[:,target_variable],title=f'Coefficient {target_variable}',label='',color='blue',xlabel='True',ylabel=ylabel,one_to_one=True)
 plt.savefig(f'{model_output_dir}/hexbin_{warm_start}.png')
 plt.close()
