@@ -34,7 +34,7 @@ if len(sys.argv) == 1:
     sys.argv = ['', ('PROF_OWEG'), 
                 'Averaged_over_55th_to_5th_min', 
                 ('2018-01-01T00:00:00', '2018-12-31T23:00:00'), 
-                'not_segregated', 'not_transformed','rmse',0, "1",1]    # for debugging
+                'not_segregated', 'not_transformed','r2',0, "1",0]    # for debugging
     print('Debugging mode: sys.argv set to ', sys.argv)
 
 # stations can be passed as a list or a single string (for a single station) or a tuple of strings (for multiple stations)
@@ -190,10 +190,9 @@ if transformed == 'transformed':
     print('min_max_scaler dumped')
 
 automl_settings = {
-    "time_budget": 600,  # in seconds
+    "time_budget": 7200,  # in seconds
     "metric": loss_function,
     "task": 'regression',
-    "estimator_list": ['xgboost'],
     "early_stop": True,
     "model_history": True, #A boolean of whether to keep the best model per estimator
     "retrain_full": True, #whether to retrain the selected model on the full training data
