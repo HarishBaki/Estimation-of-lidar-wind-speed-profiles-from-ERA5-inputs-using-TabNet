@@ -87,7 +87,8 @@ input_variables = [
     "zust", "i10fg", "t2m", "skt", "stl1", "d2m", "msl", "blh", "ishf", 
     "ie", "tcc", "lcc", "cape", "bld", "t_975", "t_950", "2mtempgrad", 
     "sktempgrad", "dewtempsprd", "975tempgrad", "950tempgrad", "sinHR", 
-    "cosHR", "sinJDAY", "cosJDAY"
+    "cosHR", "sinJDAY", "cosJDAY",
+    "1000ws","1000wsgrad","1000to950wsgrad","1000to950wssecondgrad","1000tempgrad","1000to950tempgrad","1000to950tempsecondgrad"
 ]
 input_times_freq = 1 #ratio between the target times and input times, 12 for NOW23 data
 
@@ -190,7 +191,7 @@ if transformed == 'transformed':
     print('min_max_scaler dumped')
 
 automl_settings = {
-    "time_budget": 7200,  # in seconds
+    "time_budget": 600,  # in seconds
     "metric": loss_function,
     "task": 'regression',
     "early_stop": True,
