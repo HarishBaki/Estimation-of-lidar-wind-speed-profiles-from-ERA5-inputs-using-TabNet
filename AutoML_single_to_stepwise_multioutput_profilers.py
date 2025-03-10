@@ -31,7 +31,7 @@ randSeed = np.random.randint(1000)
 
 # Simulate passing arguments during debugging
 if len(sys.argv) == 1:
-    sys.argv = ['', ('PROF_OWEG'), 
+    sys.argv = ['', ('PROF_QUEE'), 
                 'Averaged_over_55th_to_5th_min', 
                 ('2021-01-01T00:00:00', '2023-12-31T23:00:00'), 
                 'segregated', 'not_transformed','rmse',0, "1",0]    # for debugging
@@ -87,7 +87,9 @@ input_variables = [
     "zust", "i10fg", "t2m", "skt", "stl1", "d2m", "msl", "blh", "ishf", 
     "ie", "tcc", "lcc", "cape", "bld", "t_975", "t_950", "2mtempgrad", 
     "sktempgrad", "dewtempsprd", "975tempgrad", "950tempgrad", "sinHR", 
-    "cosHR", "sinJDAY", "cosJDAY"
+    "cosHR", "sinJDAY", "cosJDAY",
+    "1000ws","1000wsgrad","1000to950wsgrad","1000to950wssecondgrad","1000tempgrad","1000to950tempgrad","1000to950tempsecondgrad",
+    "u10","v10","u100","v100","u_1000","v_1000","u_950","v_950","u_975","v_975"
 ]
 input_times_freq = 1 #ratio between the target times and input times, 12 for NOW23 data
 
@@ -190,7 +192,7 @@ if transformed == 'transformed':
     print('min_max_scaler dumped')
 
 automl_settings = {
-    "time_budget": 3600,  # in seconds
+    "time_budget": 360,  # in seconds
     "metric": loss_function,
     "task": 'regression',
     "estimator_list": ['xgboost'],
@@ -307,7 +309,8 @@ for target_variable in (target_variables):
 
 for target_variable in (target_variables):
     ylabel = 'Single target\n Predicted' if target_variable == 0 else ''
-    QQ_plotter(fig,gs[1,target_variable],Y_test[:,target_variable],Y_pred[:,target_variable],title=f'Coefficient {target_variable}',label='',color='blue',xlabel='True',ylabel=ylabel,one_to_one=True)
+    ax_qq = fig.add_subplot(gs[1,target_variable])
+    QQ_plotter(ax_qq,Y_test[:,target_variable],Y_pred[:,target_variable],title=f'Coefficient {target_variable}',label='',color='blue',xlabel='True',ylabel=ylabel,one_to_one=True)
 
 # --- Second row, with step 1 to 4 ---
 Y_pred = []
