@@ -89,7 +89,17 @@ input_variables = [
     "sktempgrad", "dewtempsprd", "975tempgrad", "950tempgrad", "sinHR", 
     "cosHR", "sinJDAY", "cosJDAY",
     "1000ws","1000wsgrad","1000to950wsgrad","1000to950wssecondgrad","1000tempgrad","1000to950tempgrad","1000to950tempsecondgrad",
-    "u10","v10","u100","v100","u_1000","v_1000","u_950","v_950","u_975","v_975"
+    "u10","v10","u100","v100","u_1000","v_1000","u_950","v_950","u_975","v_975",
+    "u10_mean","u10_std","u10_skew","u10_kurt",
+    "v10_mean","v10_std","v10_skew","v10_kurt",
+    "u100_mean","u100_std","u100_skew","u100_kurt",
+    "v100_mean","v100_std","v100_skew","v100_kurt",
+    "u_1000_mean","u_1000_std","u_1000_skew","u_1000_kurt",
+    "v_1000_mean","v_1000_std","v_1000_skew","v_1000_kurt",
+    "u_950_mean","u_950_std","u_950_skew","u_950_kurt",
+    "v_950_mean","v_950_std","v_950_skew","v_950_kurt",
+    "u_975_mean","u_975_std","u_975_skew","u_975_kurt",
+    "v_975_mean","v_975_std","v_975_skew","v_975_kurt"
 ]
 input_times_freq = 1 #ratio between the target times and input times, 12 for NOW23 data
 
@@ -192,7 +202,7 @@ if transformed == 'transformed':
     print('min_max_scaler dumped')
 
 automl_settings = {
-    "time_budget": 360,  # in seconds
+    "time_budget": 600,  # in seconds
     "metric": loss_function,
     "task": 'regression',
     "estimator_list": ['xgboost'],
