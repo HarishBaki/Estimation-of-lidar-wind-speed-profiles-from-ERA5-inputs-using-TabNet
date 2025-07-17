@@ -24,7 +24,7 @@ for index, row in profiler_stations.iterrows():
         # Load profiler data
         ds = xr.open_dataset(f'data/NYSM_standard_and_profiler_combined_wind_speed/{station_id}.nc')
         data = ds.wind_speed.sel(range=slice(10,500))
-        Z = ds.range.values
+        Z = data.range.values
 
         # Define the number of required non-missing points for intermediate range
         intermediate_non_missing_points = 4
